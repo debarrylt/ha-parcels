@@ -25,6 +25,6 @@ reload_rules:
 test_email:
   fields:
     subject: {required: true, example: "Your parcel is out for delivery", selector: {text: {}}}
-    sender: {required: true, example: "Evri <do-not-reply@evri.com>", selector: {text: {}}}
+    sender: {required: true, example: "do-not-reply@evri.com", selector: {text: {}}}
     body: {required: true, example: "Tracking number: H09XYZ0000000042", selector: {text: {multiline: true}}}
     date: {example: "2026-11-05T14:27:00+00:00", selector: {datetime: {}}}
