@@ -1,0 +1,330 @@
+# Parcels: built-in email-reading rules (United Kingdom, English).
+#
+# Everything here is plain data. Nothing in this file needs Python knowledge, but the "regex" entries are regular
+# expressions (https://docs.python.org/3/library/re.html). To adapt Parcels to another country or language, do NOT edit
+# this file (an update would overwrite it): create <your Home Assistant config folder>/parcels_rules.yaml, put only your
+# additions or changes in it, then run the action "Parcels: Reload rules". See "Adapting the rules to your country" in the
+# README, and examples/parcels_rules.yaml for a French example.
+#
+# How your file is combined with this one:
+#   - A mapping (carriers, merchants, status, problems...) is merged by key: your entry wins, an entry you set to
+#     `null` is removed, other entries stay.
+#   - A list (domains, regexes, ...) has your items appended after the defaults.
+#   - A section named in your file's top-level `replace: [section, ...]` is replaced by yours instead of merged
+#     (needed for weekdays, months and postcode when you change language).
+#
+# Writing regexes in YAML: use 'single quotes' so backslashes are kept as they are, and write an apostrophe inside
+# single quotes twice ('we''ve'). Patterns are matched without regard to upper/lower case unless a section says otherwise.
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Carriers: key -> name shown, sender domains, tracking number formats, tracking page.
+#   name          Display name.
+#   code_17track  The carrier's number in 17TRACK (https://res.17track.net/asset/carrier/info/apicarrier.all.json),
+#                 or null. Lets Parcels tell 17TRACK which carrier a number belongs to.
+#   domains       Email sender domains of the carrier (sub-domains match too). The first carrier whose domain matches
+#                 the sender is the parcel's carrier.
+#   tracking      Regexes for this carrier's tracking numbers (\b = word edge). Empty = any number is accepted.
+#   page          The carrier's own tracking page, {} is replaced by the tracking number. Optional.
+# The key "amazon" is special: Amazon parcels are followed through their order page, not a tracking page.
+carriers:
+  amazon:
+    name: Amazon
+    code_17track: null
+    domains: [amazon.co.uk, amazon.com]
+    tracking: ['\bTBA\d{12}\b']
+  royal_mail:
+    name: Royal Mail
+    code_17track: 11031
+    domains: [royalmail.com, royalmail.co.uk]
+    tracking: ['\b[A-Z]{2}\d{9}GB\b']
+    page: 'https://www.royalmail.com/track-your-item#/tracking-results/{}'
+  parcelforce:
+    name: Parcelforce
+    code_17track: 11033
+    domains: [parcelforce.com, parcelforce.co.uk]
+    tracking: ['\b[A-Z]{2}\d{7}\b', '\b[A-Z]{2}\d{9}GB\b']
+    page: 'https://www.parcelforce.com/track-trace?trackNumber={}'
+  evri:
+    name: Evri
+    code_17track: 100331
+    domains: [evri.com, hermes-europe.co.uk, myhermes.co.uk]
+    tracking: ['\b[A-Z]\d{2}[A-Z0-9]{13}\b']
+    page: 'https://www.evri.com/track/parcel/{}/details'
+  dpd:
+    name: DPD
+    code_17track: 100010
+    domains: [dpd.co.uk]
+    page: 'https://www.dpd.co.uk/apps/tracking/?reference={}'
+  dpd_local:
+    name: DPD Local
+    code_17track: 100709
+    domains: [dpdlocal.co.uk]
+    page: 'https://www.dpdlocal.co.uk/apps/tracking/?reference={}'
+  dhl_uk:
+    name: DHL
+    code_17track: 100152
+    domains: [dhlecommerce.co.uk, dhlparcel.co.uk]
+    page: 'https://track.dhlparcel.co.uk/?con={}'
+  dhl_express:
+    name: DHL Express
+    code_17track: 100001
+    domains: [dhl.com, dhl.co.uk]
+    page: 'https://www.dhl.com/gb-en/home/tracking/tracking-express.html?submit=1&tracking-id={}'
+  # InPost has no page here: its old address is gone, so it relies on the link in the email.
+  inpost:
+    name: InPost
+    code_17track: 100462
+    domains: [inpost.co.uk]
+    tracking: ['\bJJD\d{16,20}\b', '\bJD\d{16,18}\b']
+  yodel:
+    name: Yodel
+    code_17track: 100017
+    domains: [yodel.co.uk, yodel.net]
+    tracking: ['\bJJD\d{16,20}\b', '\bJD\d{16,18}\b']
+    page: 'https://www.yodel.co.uk/tracking/{}'
+  ups:
+    name: UPS
+    code_17track: 100002
+    domains: [ups.com]
+    tracking: ['\b1Z[0-9A-Z]{16}\b']
+    page: 'https://www.ups.com/track?tracknum={}'
+  fedex:
+    name: FedEx
+    code_17track: 100003
+    domains: [fedex.com]
+    page: 'https://www.fedex.com/fedextrack/?trknbr={}'
+
+# Number formats tried in every email, whatever the carrier.
+generic_tracking: ['\b1Z[0-9A-Z]{16}\b', '\bTBA\d{12}\b', '\b[A-Z]{2}\d{9}GB\b', '\bJJD\d{16,20}\b']
+
+# Words before a tracking number: "Tracking number: X", "PARCEL NO. X" (the number follows on the same or next line).
+# Pieces of a regex, joined with "or".
+tracking_labels:
+  - 'tracking\s*(?:number|no\.?|id|code)'
+  - 'shipment\s*(?:number|no\.?)'
+  - 'parcel\s*(?:number|no\.?)'
+  - 'consignment\s*(?:number|no\.?)'
+
+# Words before an order number: "Order #23909", "Order number: 123-456". Pieces of a regex, joined with "or".
+order_labels:
+  - 'order\s*(?:number|no\.?|id)?'
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Merchants: sender domain -> shop.
+#   name                Display name.
+#   order_page          The shop's page for an order, {} is replaced by the order number. Optional.
+#   order_history_page  Page opened when the order number is unknown. Optional.
+#   fix_spelling        true: a shop name found in the email is shown as `name` whatever its spaces and capitals
+#                       ("Ali Express" -> "AliExpress").
+#   name_starts_with    true: every merchant whose name starts with `name` ("Amazon UK") gets these pages.
+merchants:
+  aliexpress.com:
+    name: AliExpress
+    order_page: 'https://www.aliexpress.com/p/order/detail.html?orderId={}'
+    fix_spelling: true
+  ebay.co.uk: {name: eBay}
+  ebay.com: {name: eBay}
+  amazon.co.uk:
+    name: Amazon
+    order_page: 'https://www.amazon.co.uk/gp/your-account/order-details?orderID={}'
+    order_history_page: 'https://www.amazon.co.uk/gp/css/order-history'
+    name_starts_with: true
+  amazon.com: {name: Amazon}
+
+# Shop email platforms: the sender's display name is the shop, not the domain.
+platform_domains: [shopifyemail.com, myshopify.com, shopify.com, klaviyomail.com, mcsv.net, sendgrid.net, mailgun.org,
+                   squarespace-mail.com, wixemails.com]
+# Private mailboxes: the domain says nothing about the shop, so it is never used as the shop's name.
+webmail_domains: [gmail, googlemail, outlook, hotmail, yahoo, icloud]
+# Domain endings made of two parts: "shop.co.uk" is the shop "Shop", not "Co".
+two_part_suffixes: [co.uk]
+# Where the shop is named in the text. Group 1 is the name. Case matters here (names start with a capital).
+merchant_patterns:
+  - '\bFROM:\**\s*\**([A-Z][\w&'' .-]{1,40}?)\s*\**\s*$'
+  - '\bparcel from ([A-Z][\w&''.-]*(?: [A-Z][\w&''.-]*){0,3})'
+  - '\border from ([A-Z][\w&''.-]*(?: [A-Z][\w&''.-]*){0,3})'
+  - '\byour ([A-Z][\w&''.-]*(?: [A-Z][\w&''.-]*){0,2}) parcel'
+  - 'on behalf of ([A-Z][\w&''.-]*(?: [A-Z][\w&''.-]*){0,3})'
+# Words those patterns can catch that are not a shop (lower case).
+not_merchant_words: [us, the, your, our, a, an, sender]
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Status. The email's subject is checked first, then the start of its text. Statuses are tried in the order listed
+# (most specific first) and the first phrase that matches wins. Statuses: ordered, shipped, in_transit,
+# out_for_delivery, pickup, delivered.
+
+# Only for the subject, tried before everything else.
+subject_status:
+  ordered:
+    - '^\s*ordered\b'                       # Amazon: "Ordered: 'item...'"
+    - '\border\b.{0,40}\bconfirmed\b'       # "Your order X is confirmed"
+
+status:
+  delivered:
+    # (?<!be ) : "is due to be delivered today" announces a delivery, it is not a done one
+    - '\b(?:has been|was|been|got|is)\s+(?:successfully\s+)?delivered\b'
+    - '(?<!be )\bdelivered\s+(?:today|to|at|on)\b'
+    - '\bdelivery\s+complete'
+    - '^\s*delivered\b'
+    - '\b(?:has|have) delivered\b'
+    - '\bpackage delivered\b'
+    - '\bparcel delivered\b'
+    - '\bwe(?:''ve| have) delivered'
+  pickup:
+    - 'ready (?:to|for) (?:collect|collection|pick ?up)'
+    - 'available for collection'
+    - 'waiting for you at'
+  out_for_delivery:
+    - 'out for delivery'
+    - 'on (?:its|the) way to you today'
+    - 'arriving today'
+    - 'delivering (?:it )?today'
+    - 'due today'
+    - 'with (?:our|the) driver'
+    - 'with your\b[^.\n]{0,40}\bdriver\b'
+    - '\bfor delivery today\b'
+    - '\bto be delivered:?\s+today\b'
+  in_transit:
+    - 'in transit'
+    - 'we have your parcel'
+    - 'we(?:''ve| have) (?:got|received) your parcel'
+    - 'on (?:its|the) way'
+    - 'has (?:been )?(?:shipped|dispatched|despatched)'
+    - '\b(?:shipped|dispatched|despatched)\b'
+    - 'arriving'
+    - 'with the courier'
+    - '\b(?:due|expected|scheduled|going) to be delivered\b'
+  shipped:
+    - 'expecting your parcel'
+    - 'waiting for your parcel'
+    - 'label (?:has been )?created'
+    - 'shipping info(?:rmation)? (?:is )?now available'
+    - 'preparing (?:for|to) ship'
+    - 'will (?:soon )?be (?:shipped|dispatched)'
+    - '(?:here is|here''s) (?:the|your) tracking (?:information|number|details)'
+    - 'tracking information for your order'
+  ordered:
+    - 'order (?:confirm|received|placed)'
+    - 'thanks for your order'
+    - 'thank you for your order'
+    - 'we(?:''ve| have) received your order'
+
+# An announced delivery ("is due to be delivered today", "will be delivered on Friday"), not a done one.
+to_be_delivered: ['\bbe delivered\b']
+
+# What will happen, not what has: "we'll notify you once your items are on the way". Cut out before reading the status.
+future_clause:
+  - '\b(?:once|when|after|as soon as|before)\b[^.\n]{0,80}'
+  - '\b(?:will|we''ll|we will|you''ll)\s+(?:notify|email|let you know|send|be)\b[^.\n]{0,80}'
+
+# Amazon's emails all carry this progress bar as text whatever stage the order is at, so its words say nothing.
+# (Bambu: "Ordered Packed In Transit Delivered".)
+progress_bar:
+  - '\bordered\s+(?:packed\s+)?(?:dispatched|despatched|shipped|in transit)\s+(?:out for delivery\s+)?delivered\b'
+
+# Problems: the text shown -> the phrases that mean it. The first problem with a matching phrase wins.
+# "Misdelivered / investigating" is known to the program by that exact text: keep it if you translate the phrases.
+problems:
+  # first: a carrier's follow-up on a lost parcel also apologises "for the delay"
+  Misdelivered / investigating:
+    - 'delivered to (?:the |an )?(?:incorrect|wrong) (?:location|address|place)'
+    - '(?:can''t|cannot|can not) find (?:my|your|the) parcel'
+    - 'raised an investigation'
+    - 'ongoing investigation'
+    - 'investigation (?:regarding|into)'
+  Delivery failed:
+    - '(?:missed|failed|unsuccessful|couldn''t|could not|unable to)\s+(?:make (?:the |your )?)?deliver'
+  Returned to sender:
+    - 'returned to (?:the )?sender'
+    - 'being returned'
+    - 'on its way back'
+  Customs fee to pay:
+    - 'customs (?:charge|fee|duty)'
+    - 'import (?:duty|vat|charge)'
+    - 'fee to pay'
+    - 'pay (?:the )?(?:fee|charge)'
+  Delayed:
+    - 'delayed'
+    - 'running late'
+    - 'delay to your'
+  Held / needs action:
+    - 'held at'
+    - 'on hold'
+    - 'address (?:issue|problem)'
+    - 'need more information'
+
+# Words that make an email about a parcel when it has a status: any one of them in the subject.
+shipping_hint: ['parcel', 'package', 'shipment', 'deliver', 'dispatch', 'despatch', 'shipped', 'tracking', 'courier', 'order']
+
+# Prefix of a forwarded email's subject, removed ("Fwd: ..."). Pieces of a regex.
+forward_prefixes: ['fwd?', 'fw']
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Links in the emails. The wording of the link decides ("Track your parcel", "View order"), then its address.
+# Words that disqualify a link (footer, marketing), looked for in the address and in the link text.
+ignored_link_words:
+  - 'unsubscribe'
+  - 'opt-?out'
+  - 'preference'
+  - 'privacy'
+  - 'terms'
+  - 'cookie'
+  - 'feedback'
+  - 'survey'
+  - 'review'
+  - 'rate[-_ ]'
+  - '\bhelp\b'
+  - 'support'
+  - 'contact'
+  - 'return'
+  - 'facebook'
+  - 'instagram'
+  - 'twitter'
+  - 'linkedin'
+  - 'tiktok'
+  - 'youtube'
+# Link text that means "track the parcel".
+track_link_labels:
+  - '\btrack\b'
+  - '\btracking\b'
+  - 'follow (?:your|my|the) (?:parcel|package|delivery|order|shipment)'
+  - 'where(?:''s| is) my'
+# Link text that means "see the order".
+order_link_labels:
+  - '\b(?:view|see|manage|check|open)\b.{0,20}\border\b'
+  - '\border (?:details|status|summary)\b'
+  - '\b(?:my|your) orders?\b'
+# Link addresses that look like an order page.
+order_link_paths:
+  - '/(?:my-?|account/|user/)?orders?(?:[/?_-]|$)'
+  - 'order[-_]?(?:details?|status)'
+  - 'orderid='
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Dates. Full names in lower case; the first three letters are also accepted ("Fri", "Nov"). Changing the language needs
+# `replace: [weekdays, months]` in your file. weekdays: Monday first (7 names); months: January first (12 names).
+weekdays: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+months: [january, february, march, april, may, june, july, august, september, october, november, december]
+# Ending of a day number: "6th November". Pieces of a regex.
+ordinal_suffixes: ['st', 'nd', 'rd', 'th']
+# Words that must come shortly before a date for it to be the delivery date ("arriving on 6 November").
+eta_context: ['deliver', 'arriv', 'expect', 'due', 'estimated', 'between', 'by', 'on']
+# "today" and "tomorrow" in delivery emails.
+eta_today: ['today', 'out for delivery', 'due today', 'arriving today']
+eta_tomorrow: ['tomorrow']
+# Words before a weekday name: "arriving Friday". Pieces of a regex.
+eta_weekday_cues: ['arriv\w*', 'deliver\w*', 'expected', 'due', 'estimated']
+# Words between the two times of a delivery window: "between 9:40 and 11:40", "09:40 - 11:40". Pieces of a regex.
+time_window_joiners: ['-', '–', '—', 'to', 'and']
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Delivery address ("is it for home?").
+# Label before the address: "Shipping address: <name, street, town, postcode>". Pieces of a regex.
+ship_to_labels: ['will ship to', 'ship(?:ping|s)? to', 'shipping address', 'delivery address']
+# Words that start the next part of the email, ending the address.
+ship_to_stop_words: [Estimated, Order, Track, View, Arriving, Delivery, Get]
+# Amazon style "<address book name> – <CITY> Order #": group 1 = name, group 2 = place. Case matters.
+ship_to_address_book:
+  - '((?:[A-Z][\w''’.-]*|de|du|da|di|le|la|van|von|der)(?:\s+(?:[A-Z][\w''’.-]*|de|du|da|di|le|la|van|von|der)){0,3})\s+–\s+([A-Z][A-Z .''’-]{1,40}?)\s+Order\s*#'
+# Postcode formats, tried in turn on the upper-cased address. The groups are joined to compare with the home postcode.
+postcode: ['\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b']

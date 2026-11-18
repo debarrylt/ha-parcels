@@ -1,0 +1,128 @@
+# Example: Parcels rules for France (French emails). Copy to <Home Assistant config folder>/parcels_rules.yaml, adjust,
+# then run the action "Parcels: Reload rules". Try it with the action "Parcels: Test email".
+#
+# This file only holds what DIFFERS from the built-in UK/English rules (custom_components/parcels/rules.yaml, read it for the
+# full list of sections). Lists here are ADDED to the built-in ones, mappings are merged by key (`key: null` removes a
+# built-in entry), and sections named under `replace:` are replaced instead.
+#
+# The carrier facts below (domains, tracking number formats, tracking pages) were written from general knowledge and are NOT
+# checked against real emails: compare them with your own parcel emails and adjust. Entries marked "adjust" are guesses.
+#
+# Regexes: use 'single quotes'; an apostrophe inside is written twice ('aujourd''hui').
+
+# Names of days and months differ per language, so the English lists are replaced, not extended.
+# The postcode is 5 digits; it is used to tell whether a parcel goes to your home.
+replace: [weekdays, months, postcode]
+
+weekdays: [lundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche]
+months: [janvier, février, mars, avril, mai, juin, juillet, août, septembre, octobre, novembre, décembre]
+postcode: ['\b(\d{5})\b']
+
+carriers:
+  # Amazon France: the carrier is Amazon itself, so only its domain is added.
+  amazon:
+    domains: [amazon.fr]
+  colissimo:
+    name: Colissimo
+    code_17track: null          # optional: 17TRACK's number for Colissimo
+    domains: [colissimo.fr, laposte.fr]
+    # International format (13 characters, ends in FR) and the Colissimo domestic format (adjust to your numbers).
+    tracking: ['\b[A-Z]{2}\d{9}FR\b', '\b[0-9][A-Z]\d{11}\b']
+    page: 'https://www.laposte.fr/outils/suivre-vos-envois?code={}'
+  chronopost:
+    name: Chronopost
+    code_17track: null
+    domains: [chronopost.fr]
+    tracking: ['\b[A-Z]{2}\d{9}FR\b']      # adjust: Chronopost also uses other formats
+    page: 'https://www.chronopost.fr/tracking-no-cms/suivi-page?listeNumerosLT={}'
+  mondial_relay:
+    name: Mondial Relay
+    code_17track: null
+    domains: [mondialrelay.fr]
+    # No tracking format given: any number is accepted. adjust if you want it stricter.
+    page: 'https://www.mondialrelay.fr/suivi-de-colis/?numeroExpedition={}'   # adjust
+
+merchants:
+  amazon.fr:
+    name: Amazon
+    order_page: 'https://www.amazon.fr/gp/your-account/order-details?orderID={}'
+    order_history_page: 'https://www.amazon.fr/gp/css/order-history'
+    name_starts_with: true
+  # Remove the UK Amazon entry so the French pages are the ones used for Amazon.
+  amazon.co.uk: null
+
+# --- Status phrases, per status (added after the English ones) -------------------------------------------------------
+status:
+  delivered:
+    - '\b(?:a été|été|est|bien) livrée?\b'            # "votre colis a été livré", "est livré"
+    - '\blivraison effectuée'
+    - '^\s*livrée?\b'
+  pickup:
+    - 'disponible (?:en|au) point(?: relais| de retrait)'
+    - 'prêt à être retiré'
+    - 'à retirer (?:en|au|dans)'
+  out_for_delivery:
+    - 'en cours de livraison'
+    - 'sera livrée? aujourd''hui'
+    - 'livraison prévue aujourd''hui'
+    - 'en tournée'
+  in_transit:
+    - 'a été expédiée?'
+    - 'vient d''être expédiée?'
+    - 'en cours d''acheminement'
+    - 'en transit'
+    - 'pris en charge par'
+  shipped:
+    - 'en cours de préparation'
+    - 'sera expédiée? (?:sous|dans|prochainement)'
+    - 'étiquette (?:a été )?créée'
+  ordered:
+    - 'confirmation de (?:votre )?commande'
+    - 'merci pour votre commande'
+    - 'nous avons bien reçu votre commande'
+
+problems:
+  Delivery failed:
+    - 'livraison (?:a )?échoué'
+    - 'n''a pas pu être livrée?'
+    - 'absent lors du passage'
+  Returned to sender:
+    - 'retourné à l''expéditeur'
+  Customs fee to pay:
+    - 'frais de douane'
+    - 'droits de douane'
+  Delayed:
+    - 'retard'
+  Held / needs action:
+    - 'en attente de'
+    - 'action requise'
+
+# "sera livré" announces a delivery; "dès que ... " speaks of the future: neither is a done delivery.
+to_be_delivered: ['\b(?:sera|va être|doit être) livrée?\b']
+future_clause: ['\b(?:dès que|lorsque|une fois|après|avant)\b[^.\n]{0,80}']
+
+# --- Words around numbers, links and dates ---------------------------------------------------------------------------
+tracking_labels: ['num[ée]ro de (?:suivi|colis)', 'n°\s*de (?:suivi|colis)', 'code de suivi']
+order_labels: ['commande\s*(?:n°|num[ée]ro|no\.?)?']
+shipping_hint: ['colis', 'livr', 'expédi', 'suivi', 'commande']
+forward_prefixes: ['tr']
+merchant_patterns:
+  - 'colis de ([A-Z][\w&''.-]*(?: [A-Z][\w&''.-]*){0,3})'
+  - 'commande (?:de|chez) ([A-Z][\w&''.-]*(?: [A-Z][\w&''.-]*){0,3})'
+  - 'de la part de ([A-Z][\w&''.-]*(?: [A-Z][\w&''.-]*){0,3})'
+
+ignored_link_words: ['désabonn', 'confidentialit', 'conditions', 'avis', 'aide', 'contact', 'retour']
+track_link_labels: ['\bsuivre\b', '\bsuivi\b', 'où est mon (?:colis|commande)']
+order_link_labels: ['(?:voir|consulter|gérer) (?:ma|votre|la) commande', 'détails de la commande', 'mes commandes']
+order_link_paths: ['/commandes?(?:[/?_-]|$)']
+
+ordinal_suffixes: ['er']                                     # "1er novembre"
+eta_context: ['livr', 'prévu', 'attendu', 'estimé', 'avant']
+eta_today: ['aujourd''hui']
+eta_tomorrow: ['demain']
+eta_weekday_cues: ['livr\w*', 'prévu\w*', 'attendu\w*', 'estimé\w*']
+# Delivery windows are read in the form "09:40 - 11:40" or "09.40 et 11.40"; "9h40" is not understood.
+time_window_joiners: ['à', 'et']
+
+ship_to_labels: ['adresse de livraison', 'livraison à', 'livré à']
+ship_to_stop_words: [Date, Commande, Suivre, Voir, Livraison]

@@ -1,0 +1,628 @@
+# Example Parcels dashboard. Add it in Settings > Dashboards > (new dashboard) > raw configuration editor, or paste a
+# view into an existing dashboard. Only core Home Assistant cards are used (tile, markdown, heading, grid).
+# One section per row slot (sensor.parcels_slot_N, ordered: delivered-to-confirm, flagged, then by ETA); a slot shows
+# only while a parcel occupies it. Tapping a parcel opens its detail view (subviews parcel-1..8 at the end of the file;
+# the navigation path assumes the dashboard URL /dashboard-parcels, change it to yours).
+# The to-do list at the bottom holds every parcel: tick = received; add one by hand with "tracking: <number>" in the
+# description.
+title: Parcels
+views:
+  - title: Parcels
+    path: parcels
+    icon: mdi:package-variant-closed
+    type: sections
+    max_columns: 4
+    sections:
+      - type: grid
+        cards:
+          - type: heading
+            heading: Deliveries
+            icon: mdi:truck-delivery-outline
+          - type: tile
+            entity: sensor.parcels_in_flight
+            name: On the way
+            icon: mdi:truck-fast-outline
+            color: blue
+            grid_options: {columns: 6}
+            tap_action: {action: none}
+          - type: tile
+            entity: sensor.parcels_in_flight
+            name: Arriving today
+            icon: mdi:calendar-today
+            color: teal
+            state_content: arriving_today
+            grid_options: {columns: 6}
+            tap_action: {action: none}
+          - type: tile
+            entity: sensor.parcels_in_flight
+            name: To confirm
+            icon: mdi:package-variant-closed-check
+            color: green
+            state_content: delivered_to_confirm
+            grid_options: {columns: 6}
+            tap_action: {action: none}
+          - type: tile
+            entity: sensor.parcels_in_flight
+            name: To follow up
+            icon: mdi:flag-outline
+            color: orange
+            state_content: follow_up
+            grid_options: {columns: 6}
+            tap_action: {action: none}
+          - type: markdown
+            text_only: true
+            content: >-
+              {% set a = (states.sensor.parcels_in_flight.attributes if states.sensor.parcels_in_flight else {}) %}
+              {% if states('sensor.parcels_in_flight') | int(0) == 0 %}Nothing on the way.{% endif %}
+              {% if a.get('details_pending') %}<ha-alert alert-type="info">{{ a.get('details_pending') }} waiting for details: the AI is {{ 'busy' if is_state('binary_sensor.parcels_ai_online', 'on') else 'offline' }}.</ha-alert>{% endif %}
+              {% if a.get('last_error') %}<ha-alert alert-type="error">{{ a.get('last_error') }}</ha-alert>{% endif %}
+              {% if a.get('more') %}{{ a.get('more') }} more in the list below.{% endif %}
+              Mail checked {{ as_timestamp(a.get('last_scan'), 0) | timestamp_custom('%H:%M') }}
+          - type: tile
+            entity: sensor.parcels_in_flight
+            name: Check mail now
+            icon: mdi:email-sync-outline
+            color: primary
+            hide_state: true
+            grid_options: {columns: 12}
+            tap_action:
+              action: perform-action
+              perform_action: parcels.scan
+      - type: grid
+        cards:
+          - type: tile
+            entity: sensor.parcels_slot_1
+            name: Parcel 1
+            grid_options: {columns: 12}
+            tap_action: {action: navigate, navigation_path: /dashboard-parcels/parcel-1}
+          - type: markdown
+            text_only: true
+            content: >-
+              {% set a = (states.sensor.parcels_slot_1.attributes if states.sensor.parcels_slot_1 else {}) %}
+              {{ a.get('status') }} · {{ a.get('eta') or 'no date yet' }}{{ ' · ' ~ a.get('carrier') if a.get('carrier') }}
+              {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
+              {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
+              {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: button.parcels_slot_1_received
+                name: Received
+                icon: mdi:check-circle-outline
+                color: green
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_1_received}
+              - type: tile
+                entity: button.parcels_slot_1_follow_up
+                name: Follow up
+                icon: mdi:flag-outline
+                color: orange
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_1_follow_up}
+        visibility:
+          - condition: state
+            entity: sensor.parcels_slot_1
+            state_not: none
+      - type: grid
+        cards:
+          - type: tile
+            entity: sensor.parcels_slot_2
+            name: Parcel 2
+            grid_options: {columns: 12}
+            tap_action: {action: navigate, navigation_path: /dashboard-parcels/parcel-2}
+          - type: markdown
+            text_only: true
+            content: >-
+              {% set a = (states.sensor.parcels_slot_2.attributes if states.sensor.parcels_slot_2 else {}) %}
+              {{ a.get('status') }} · {{ a.get('eta') or 'no date yet' }}{{ ' · ' ~ a.get('carrier') if a.get('carrier') }}
+              {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
+              {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
+              {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: button.parcels_slot_2_received
+                name: Received
+                icon: mdi:check-circle-outline
+                color: green
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_2_received}
+              - type: tile
+                entity: button.parcels_slot_2_follow_up
+                name: Follow up
+                icon: mdi:flag-outline
+                color: orange
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_2_follow_up}
+        visibility:
+          - condition: state
+            entity: sensor.parcels_slot_2
+            state_not: none
+      - type: grid
+        cards:
+          - type: tile
+            entity: sensor.parcels_slot_3
+            name: Parcel 3
+            grid_options: {columns: 12}
+            tap_action: {action: navigate, navigation_path: /dashboard-parcels/parcel-3}
+          - type: markdown
+            text_only: true
+            content: >-
+              {% set a = (states.sensor.parcels_slot_3.attributes if states.sensor.parcels_slot_3 else {}) %}
+              {{ a.get('status') }} · {{ a.get('eta') or 'no date yet' }}{{ ' · ' ~ a.get('carrier') if a.get('carrier') }}
+              {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
+              {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
+              {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: button.parcels_slot_3_received
+                name: Received
+                icon: mdi:check-circle-outline
+                color: green
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_3_received}
+              - type: tile
+                entity: button.parcels_slot_3_follow_up
+                name: Follow up
+                icon: mdi:flag-outline
+                color: orange
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_3_follow_up}
+        visibility:
+          - condition: state
+            entity: sensor.parcels_slot_3
+            state_not: none
+      - type: grid
+        cards:
+          - type: tile
+            entity: sensor.parcels_slot_4
+            name: Parcel 4
+            grid_options: {columns: 12}
+            tap_action: {action: navigate, navigation_path: /dashboard-parcels/parcel-4}
+          - type: markdown
+            text_only: true
+            content: >-
+              {% set a = (states.sensor.parcels_slot_4.attributes if states.sensor.parcels_slot_4 else {}) %}
+              {{ a.get('status') }} · {{ a.get('eta') or 'no date yet' }}{{ ' · ' ~ a.get('carrier') if a.get('carrier') }}
+              {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
+              {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
+              {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: button.parcels_slot_4_received
+                name: Received
+                icon: mdi:check-circle-outline
+                color: green
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_4_received}
+              - type: tile
+                entity: button.parcels_slot_4_follow_up
+                name: Follow up
+                icon: mdi:flag-outline
+                color: orange
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_4_follow_up}
+        visibility:
+          - condition: state
+            entity: sensor.parcels_slot_4
+            state_not: none
+      - type: grid
+        cards:
+          - type: tile
+            entity: sensor.parcels_slot_5
+            name: Parcel 5
+            grid_options: {columns: 12}
+            tap_action: {action: navigate, navigation_path: /dashboard-parcels/parcel-5}
+          - type: markdown
+            text_only: true
+            content: >-
+              {% set a = (states.sensor.parcels_slot_5.attributes if states.sensor.parcels_slot_5 else {}) %}
+              {{ a.get('status') }} · {{ a.get('eta') or 'no date yet' }}{{ ' · ' ~ a.get('carrier') if a.get('carrier') }}
+              {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
+              {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
+              {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: button.parcels_slot_5_received
+                name: Received
+                icon: mdi:check-circle-outline
+                color: green
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_5_received}
+              - type: tile
+                entity: button.parcels_slot_5_follow_up
+                name: Follow up
+                icon: mdi:flag-outline
+                color: orange
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_5_follow_up}
+        visibility:
+          - condition: state
+            entity: sensor.parcels_slot_5
+            state_not: none
+      - type: grid
+        cards:
+          - type: tile
+            entity: sensor.parcels_slot_6
+            name: Parcel 6
+            grid_options: {columns: 12}
+            tap_action: {action: navigate, navigation_path: /dashboard-parcels/parcel-6}
+          - type: markdown
+            text_only: true
+            content: >-
+              {% set a = (states.sensor.parcels_slot_6.attributes if states.sensor.parcels_slot_6 else {}) %}
+              {{ a.get('status') }} · {{ a.get('eta') or 'no date yet' }}{{ ' · ' ~ a.get('carrier') if a.get('carrier') }}
+              {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
+              {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
+              {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: button.parcels_slot_6_received
+                name: Received
+                icon: mdi:check-circle-outline
+                color: green
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_6_received}
+              - type: tile
+                entity: button.parcels_slot_6_follow_up
+                name: Follow up
+                icon: mdi:flag-outline
+                color: orange
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_6_follow_up}
+        visibility:
+          - condition: state
+            entity: sensor.parcels_slot_6
+            state_not: none
+      - type: grid
+        cards:
+          - type: tile
+            entity: sensor.parcels_slot_7
+            name: Parcel 7
+            grid_options: {columns: 12}
+            tap_action: {action: navigate, navigation_path: /dashboard-parcels/parcel-7}
+          - type: markdown
+            text_only: true
+            content: >-
+              {% set a = (states.sensor.parcels_slot_7.attributes if states.sensor.parcels_slot_7 else {}) %}
+              {{ a.get('status') }} · {{ a.get('eta') or 'no date yet' }}{{ ' · ' ~ a.get('carrier') if a.get('carrier') }}
+              {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
+              {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
+              {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: button.parcels_slot_7_received
+                name: Received
+                icon: mdi:check-circle-outline
+                color: green
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_7_received}
+              - type: tile
+                entity: button.parcels_slot_7_follow_up
+                name: Follow up
+                icon: mdi:flag-outline
+                color: orange
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_7_follow_up}
+        visibility:
+          - condition: state
+            entity: sensor.parcels_slot_7
+            state_not: none
+      - type: grid
+        cards:
+          - type: tile
+            entity: sensor.parcels_slot_8
+            name: Parcel 8
+            grid_options: {columns: 12}
+            tap_action: {action: navigate, navigation_path: /dashboard-parcels/parcel-8}
+          - type: markdown
+            text_only: true
+            content: >-
+              {% set a = (states.sensor.parcels_slot_8.attributes if states.sensor.parcels_slot_8 else {}) %}
+              {{ a.get('status') }} · {{ a.get('eta') or 'no date yet' }}{{ ' · ' ~ a.get('carrier') if a.get('carrier') }}
+              {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
+              {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
+              {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+          - type: horizontal-stack
+            cards:
+              - type: tile
+                entity: button.parcels_slot_8_received
+                name: Received
+                icon: mdi:check-circle-outline
+                color: green
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_8_received}
+              - type: tile
+                entity: button.parcels_slot_8_follow_up
+                name: Follow up
+                icon: mdi:flag-outline
+                color: orange
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: button.press
+                  target: {entity_id: button.parcels_slot_8_follow_up}
+        visibility:
+          - condition: state
+            entity: sensor.parcels_slot_8
+            state_not: none
+      - type: grid
+        cards:
+          - type: heading
+            heading: All parcels
+          - type: todo-list
+            entity: todo.parcels
+  - title: Parcel 1
+    path: parcel-1
+    subview: true
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            title: "{{ states('sensor.parcels_slot_1') }}"
+            content: >-
+              {% set a = (states.sensor.parcels_slot_1.attributes if states.sensor.parcels_slot_1 else {}) %}
+              **Status:** {{ a.get('status') }}<br>
+              **Expected:** {{ a.get('eta') or 'unknown' }}<br>
+              **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
+              **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
+              **Order:** {{ a.get('order') or '-' }}<br>
+              **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
+              {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
+              {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
+              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
+              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
+              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+          - type: markdown
+            title: Emails
+            content: >-
+              {% set a = (states.sensor.parcels_slot_1.attributes if states.sensor.parcels_slot_1 else {}) %}
+              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% endfor %}
+  - title: Parcel 2
+    path: parcel-2
+    subview: true
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            title: "{{ states('sensor.parcels_slot_2') }}"
+            content: >-
+              {% set a = (states.sensor.parcels_slot_2.attributes if states.sensor.parcels_slot_2 else {}) %}
+              **Status:** {{ a.get('status') }}<br>
+              **Expected:** {{ a.get('eta') or 'unknown' }}<br>
+              **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
+              **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
+              **Order:** {{ a.get('order') or '-' }}<br>
+              **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
+              {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
+              {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
+              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
+              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
+              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+          - type: markdown
+            title: Emails
+            content: >-
+              {% set a = (states.sensor.parcels_slot_2.attributes if states.sensor.parcels_slot_2 else {}) %}
+              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% endfor %}
+  - title: Parcel 3
+    path: parcel-3
+    subview: true
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            title: "{{ states('sensor.parcels_slot_3') }}"
+            content: >-
+              {% set a = (states.sensor.parcels_slot_3.attributes if states.sensor.parcels_slot_3 else {}) %}
+              **Status:** {{ a.get('status') }}<br>
+              **Expected:** {{ a.get('eta') or 'unknown' }}<br>
+              **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
+              **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
+              **Order:** {{ a.get('order') or '-' }}<br>
+              **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
+              {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
+              {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
+              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
+              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
+              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+          - type: markdown
+            title: Emails
+            content: >-
+              {% set a = (states.sensor.parcels_slot_3.attributes if states.sensor.parcels_slot_3 else {}) %}
+              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% endfor %}
+  - title: Parcel 4
+    path: parcel-4
+    subview: true
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            title: "{{ states('sensor.parcels_slot_4') }}"
+            content: >-
+              {% set a = (states.sensor.parcels_slot_4.attributes if states.sensor.parcels_slot_4 else {}) %}
+              **Status:** {{ a.get('status') }}<br>
+              **Expected:** {{ a.get('eta') or 'unknown' }}<br>
+              **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
+              **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
+              **Order:** {{ a.get('order') or '-' }}<br>
+              **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
+              {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
+              {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
+              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
+              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
+              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+          - type: markdown
+            title: Emails
+            content: >-
+              {% set a = (states.sensor.parcels_slot_4.attributes if states.sensor.parcels_slot_4 else {}) %}
+              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% endfor %}
+  - title: Parcel 5
+    path: parcel-5
+    subview: true
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            title: "{{ states('sensor.parcels_slot_5') }}"
+            content: >-
+              {% set a = (states.sensor.parcels_slot_5.attributes if states.sensor.parcels_slot_5 else {}) %}
+              **Status:** {{ a.get('status') }}<br>
+              **Expected:** {{ a.get('eta') or 'unknown' }}<br>
+              **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
+              **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
+              **Order:** {{ a.get('order') or '-' }}<br>
+              **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
+              {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
+              {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
+              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
+              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
+              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+          - type: markdown
+            title: Emails
+            content: >-
+              {% set a = (states.sensor.parcels_slot_5.attributes if states.sensor.parcels_slot_5 else {}) %}
+              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% endfor %}
+  - title: Parcel 6
+    path: parcel-6
+    subview: true
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            title: "{{ states('sensor.parcels_slot_6') }}"
+            content: >-
+              {% set a = (states.sensor.parcels_slot_6.attributes if states.sensor.parcels_slot_6 else {}) %}
+              **Status:** {{ a.get('status') }}<br>
+              **Expected:** {{ a.get('eta') or 'unknown' }}<br>
+              **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
+              **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
+              **Order:** {{ a.get('order') or '-' }}<br>
+              **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
+              {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
+              {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
+              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
+              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
+              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+          - type: markdown
+            title: Emails
+            content: >-
+              {% set a = (states.sensor.parcels_slot_6.attributes if states.sensor.parcels_slot_6 else {}) %}
+              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% endfor %}
+  - title: Parcel 7
+    path: parcel-7
+    subview: true
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            title: "{{ states('sensor.parcels_slot_7') }}"
+            content: >-
+              {% set a = (states.sensor.parcels_slot_7.attributes if states.sensor.parcels_slot_7 else {}) %}
+              **Status:** {{ a.get('status') }}<br>
+              **Expected:** {{ a.get('eta') or 'unknown' }}<br>
+              **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
+              **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
+              **Order:** {{ a.get('order') or '-' }}<br>
+              **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
+              {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
+              {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
+              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
+              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
+              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+          - type: markdown
+            title: Emails
+            content: >-
+              {% set a = (states.sensor.parcels_slot_7.attributes if states.sensor.parcels_slot_7 else {}) %}
+              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% endfor %}
+  - title: Parcel 8
+    path: parcel-8
+    subview: true
+    type: sections
+    sections:
+      - type: grid
+        cards:
+          - type: markdown
+            title: "{{ states('sensor.parcels_slot_8') }}"
+            content: >-
+              {% set a = (states.sensor.parcels_slot_8.attributes if states.sensor.parcels_slot_8 else {}) %}
+              **Status:** {{ a.get('status') }}<br>
+              **Expected:** {{ a.get('eta') or 'unknown' }}<br>
+              **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
+              **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
+              **Order:** {{ a.get('order') or '-' }}<br>
+              **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
+              {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
+              {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
+              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
+              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
+              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+          - type: markdown
+            title: Emails
+            content: >-
+              {% set a = (states.sensor.parcels_slot_8.attributes if states.sensor.parcels_slot_8 else {}) %}
+              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% endfor %}

@@ -1,0 +1,22 @@
+{
+  "domain": "parcels",
+  "name": "Parcels",
+  "after_dependencies": [
+    "ai_task",
+    "imap",
+    "ollama",
+    "seventeentrack"
+  ],
+  "codeowners": ["@debarrylt"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/debarrylt/ha-parcels",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/debarrylt/ha-parcels/issues",
+  "requirements": [
+    "pyseventeentrack>=1.2.0"
+  ],
+  "single_config_entry": true,
+  "version": "1.0.0"
+}

@@ -1,0 +1,5 @@
+pytest
+aioimaplib==2.0.3
+pyseventeentrack==1.2.0
+aiohttp
+PyYAML

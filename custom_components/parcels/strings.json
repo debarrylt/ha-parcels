@@ -1,0 +1,312 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mailbox",
+        "description": "Parcels reads shipping emails through Home Assistant's IMAP integration, which holds the login and the folder (Settings > Devices & services > IMAP > Configure). Pick the IMAP entry that receives your shipping emails. Parcels only reads messages and marks processed ones as read; it never deletes or moves anything.",
+        "data": {
+          "imap_entry_id": "IMAP entry"
+        },
+        "data_description": {
+          "imap_entry_id": "The scanned folder is the one set in that IMAP entry."
+        }
+      },
+      "reconfigure": {
+        "title": "Mailbox",
+        "description": "Pick a different IMAP entry. Parcels reads shipping emails through Home Assistant's IMAP integration, which holds the login and the folder (Settings > Devices & services > IMAP > Configure). Pick the IMAP entry that receives your shipping emails. Parcels only reads messages and marks processed ones as read; it never deletes or moves anything.",
+        "data": {
+          "imap_entry_id": "IMAP entry"
+        },
+        "data_description": {
+          "imap_entry_id": "The scanned folder is the one set in that IMAP entry."
+        }
+      },
+      "tracking": {
+        "title": "Tracking (optional)",
+        "description": "Live tracking is optional: without it, parcels still come from the emails. A free 17TRACK account (17track.net) gives live carrier updates. A free Ship24 API key (ship24.com) lets Parcels join a parcel handed from an export carrier to the local carrier. Leave everything empty to skip.",
+        "data": {
+          "seventeentrack_username": "17TRACK email",
+          "seventeentrack_password": "17TRACK password",
+          "ship24_api_key": "Ship24 API key"
+        },
+        "data_description": {
+          "seventeentrack_username": "The email address of your 17TRACK account.",
+          "seventeentrack_password": "Leave blank to keep the current password when editing.",
+          "ship24_api_key": "Optional. Checked when you save. Leave blank to keep the current key when editing."
+        }
+      },
+      "ai": {
+        "title": "AI for email details",
+        "description": "The rule parser finds carrier, tracking number and status. An AI can additionally read the item, order lines, merchant and delivery window. Choose none to use the rules only.",
+        "data": {
+          "ai_mode": "AI backend"
+        },
+        "data_description": {
+          "ai_mode": "Rules only, a Home Assistant AI Task entity, or an Ollama server."
+        }
+      },
+      "ai_task": {
+        "title": "AI Task entity",
+        "description": "Pick the AI Task entity that reads the emails. Email text is sent to the service behind it.",
+        "data": {
+          "ai_task_entity": "AI Task entity"
+        },
+        "data_description": {
+          "ai_task_entity": "Any entity of the AI Task integration that supports generating data."
+        }
+      },
+      "ollama": {
+        "title": "Ollama server",
+        "description": "Parcels asks the server's /api/chat. The URL and model are checked against /api/tags.",
+        "data": {
+          "ollama_url": "Ollama URL",
+          "ollama_model": "Model",
+          "ollama_api_key": "API key"
+        },
+        "data_description": {
+          "ollama_url": "For example http://192.168.1.20:11434.",
+          "ollama_model": "A model that is already pulled on the server.",
+          "ollama_api_key": "Optional. Leave blank to keep the current key when editing."
+        }
+      },
+      "home": {
+        "title": "Home address check (optional)",
+        "description": "A parcel whose emails name another address is not counted as arriving today. Leave empty to turn the check off.",
+        "data": {
+          "home_postcode": "Home postcode",
+          "home_names": "Home names"
+        },
+        "data_description": {
+          "home_postcode": "A UK postcode decides when an email names one.",
+          "home_names": "Comma-separated names your orders use for the delivery address, for example the name on an Amazon address-book entry."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the mailbox through that IMAP entry. Check the IMAP integration (login and folder).",
+      "imap_not_loaded": "That IMAP entry is not loaded. Fix it under Settings > Devices & services > IMAP first.",
+      "invalid_auth": "The server refused the login. Check the username and password.",
+      "invalid_ship24_key": "Ship24 refused this API key.",
+      "ship24_unreachable": "Could not check the key: Ship24 did not answer as expected. Try again later.",
+      "model_not_found": "That model is not available on the server. Pull it first."
+    },
+    "abort": {
+      "already_configured": "Parcels is already set up.",
+      "single_instance_allowed": "Parcels is already set up.",
+      "legacy_entry": "This entry uses the Home Assistant imap, ollama and seventeentrack integrations; there is nothing to change here.",
+      "reconfigure_successful": "The IMAP entry was updated.",
+      "no_imap": "Add the IMAP integration first (Settings > Devices & services > Add integration > IMAP), then add Parcels."
+    }
+  },
+  "options": {
+    "step": {
+      "legacy": {
+        "title": "Parcels",
+        "description": "This entry borrows the Home Assistant imap, ollama and seventeentrack integrations. Home address check and optional Ship24 key.",
+        "data": {
+          "home_postcode": "Home postcode",
+          "home_names": "Home names",
+          "ship24_api_key": "Ship24 API key"
+        },
+        "data_description": {
+          "home_postcode": "A UK postcode decides when an email names one.",
+          "home_names": "Comma-separated names your orders use for the delivery address.",
+          "ship24_api_key": "Optional, ship24.com free plan. Checked when you save."
+        }
+      },
+      "tracking": {
+        "title": "Tracking (optional)",
+        "description": "Live tracking is optional: without it, parcels still come from the emails. A free 17TRACK account (17track.net) gives live carrier updates. A free Ship24 API key (ship24.com) lets Parcels join a parcel handed from an export carrier to the local carrier. Leave everything empty to skip.",
+        "data": {
+          "seventeentrack_username": "17TRACK email",
+          "seventeentrack_password": "17TRACK password",
+          "ship24_api_key": "Ship24 API key"
+        },
+        "data_description": {
+          "seventeentrack_username": "The email address of your 17TRACK account.",
+          "seventeentrack_password": "Leave blank to keep the current password when editing.",
+          "ship24_api_key": "Optional. Checked when you save. Leave blank to keep the current key when editing."
+        }
+      },
+      "ai": {
+        "title": "AI for email details",
+        "description": "The rule parser finds carrier, tracking number and status. An AI can additionally read the item, order lines, merchant and delivery window. Choose none to use the rules only.",
+        "data": {
+          "ai_mode": "AI backend"
+        },
+        "data_description": {
+          "ai_mode": "Rules only, a Home Assistant AI Task entity, or an Ollama server."
+        }
+      },
+      "ai_task": {
+        "title": "AI Task entity",
+        "description": "Pick the AI Task entity that reads the emails. Email text is sent to the service behind it.",
+        "data": {
+          "ai_task_entity": "AI Task entity"
+        },
+        "data_description": {
+          "ai_task_entity": "Any entity of the AI Task integration that supports generating data."
+        }
+      },
+      "ollama": {
+        "title": "Ollama server",
+        "description": "Parcels asks the server's /api/chat. The URL and model are checked against /api/tags.",
+        "data": {
+          "ollama_url": "Ollama URL",
+          "ollama_model": "Model",
+          "ollama_api_key": "API key"
+        },
+        "data_description": {
+          "ollama_url": "For example http://192.168.1.20:11434.",
+          "ollama_model": "A model that is already pulled on the server.",
+          "ollama_api_key": "Optional. Leave blank to keep the current key when editing."
+        }
+      },
+      "home": {
+        "title": "Home address check (optional)",
+        "description": "A parcel whose emails name another address is not counted as arriving today. Leave empty to turn the check off.",
+        "data": {
+          "home_postcode": "Home postcode",
+          "home_names": "Home names"
+        },
+        "data_description": {
+          "home_postcode": "A UK postcode decides when an email names one.",
+          "home_names": "Comma-separated names your orders use for the delivery address, for example the name on an Amazon address-book entry."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the mailbox through that IMAP entry. Check the IMAP integration (login and folder).",
+      "imap_not_loaded": "That IMAP entry is not loaded. Fix it under Settings > Devices & services > IMAP first.",
+      "invalid_auth": "The server refused the login. Check the username and password.",
+      "invalid_ship24_key": "Ship24 refused this API key.",
+      "ship24_unreachable": "Could not check the key: Ship24 did not answer as expected. Try again later.",
+      "model_not_found": "That model is not available on the server. Pull it first."
+    }
+  },
+  "selector": {
+    "ai_mode": {
+      "options": {
+        "none": "None (rules only)",
+        "ai_task": "Home Assistant AI Task entity",
+        "ollama": "Ollama server"
+      }
+    }
+  },
+  "services": {
+    "delivered": {
+      "name": "Delivered parcels",
+      "description": "Delivered or received parcels with their order lines (merchant, order number, items), oldest first. Returns a response.",
+      "fields": {
+        "since": {
+          "name": "Since",
+          "description": "Only parcels delivered at or after this time (default: the last 30 days)."
+        }
+      }
+    },
+    "received": {
+      "name": "Received",
+      "description": "Confirm a parcel was received (or undo).",
+      "fields": {
+        "parcel_id": {
+          "name": "Parcel ID",
+          "description": "Parcel id (attribute parcel_id)."
+        },
+        "slot": {
+          "name": "Slot",
+          "description": "Row number in the list instead of an id."
+        },
+        "received": {
+          "name": "Received",
+          "description": "False to undo."
+        }
+      }
+    },
+    "follow_up": {
+      "name": "Follow up",
+      "description": "Flag or unflag a parcel for follow-up (toggles without flag).",
+      "fields": {
+        "parcel_id": {
+          "name": "Parcel ID",
+          "description": "Parcel id."
+        },
+        "slot": {
+          "name": "Slot",
+          "description": "Row number."
+        },
+        "flag": {
+          "name": "Flag",
+          "description": "True to flag, false to clear; omit to toggle."
+        },
+        "reason": {
+          "name": "Reason",
+          "description": "Shown with the flag (default: Follow up)."
+        }
+      }
+    },
+    "merge": {
+      "name": "Merge",
+      "description": "Merge a possible duplicate into another parcel.",
+      "fields": {
+        "parcel_id": {
+          "name": "Parcel ID",
+          "description": "The duplicate."
+        },
+        "into": {
+          "name": "Into",
+          "description": "The parcel to keep."
+        }
+      }
+    },
+    "remove": {
+      "name": "Remove",
+      "description": "Delete a parcel (not a parcel: wrong match, spam).",
+      "fields": {
+        "parcel_id": {
+          "name": "Parcel ID",
+          "description": "Parcel id."
+        },
+        "slot": {
+          "name": "Slot",
+          "description": "Row number."
+        }
+      }
+    },
+    "scan": {
+      "name": "Scan",
+      "description": "Check the mailbox, retry pending emails and refresh 17TRACK now."
+    },
+    "reload_rules": {
+      "name": "Reload rules",
+      "description": "Read rules.yaml and parcels_rules.yaml (in the Home Assistant config folder) again. A wrong file raises a repair and keeps the previous rules."
+    },
+    "test_email": {
+      "name": "Test email",
+      "description": "Run the email rules on a made-up email and return what they read (status, carrier, tracking numbers, date...). Nothing is stored.",
+      "fields": {
+        "subject": {
+          "name": "Subject",
+          "description": "The email's subject line."
+        },
+        "sender": {
+          "name": "Sender",
+          "description": "The sender, for example Evri <do-not-reply@evri.com>."
+        },
+        "body": {
+          "name": "Body",
+          "description": "The email's text or HTML."
+        },
+        "date": {
+          "name": "Date",
+          "description": "When the email was sent (default now)."
+        }
+      }
+    }
+  },
+  "issues": {
+    "rules_invalid": {
+      "title": "Parcels rules file is wrong",
+      "description": "The built-in rules are used until this is fixed: {error}\n\nCorrect parcels_rules.yaml in the Home Assistant config folder, then run the action Parcels: Reload rules."
+    }
+  }
+}

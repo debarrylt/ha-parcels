@@ -1,0 +1,5 @@
+# Tests inside Home Assistant (tests_ha/): uv venv .venv-ha && uv pip install --python .venv-ha/bin/python -r requirements_test_ha.txt
+# Run: .venv-ha/bin/python -m pytest -q -o asyncio_mode=auto tests_ha
+pytest-homeassistant-custom-component
+aioimaplib==2.0.3
+pyseventeentrack==1.2.0
