@@ -58,7 +58,8 @@ def new_parcel(now: datetime) -> dict[str, Any]:
             "eta_window": None, "eta_at": None, "problem": None, "problem_at": None, "flagged": False,
             "flag_reason": None, "flag_cleared_at": None, "created": _iso(now), "updated": _iso(now), "emails": [],
             "details_pending": False, "t17": {}, "delivered_at": None, "received_at": None,
-            "possible_duplicate_of": None, "manual": False, "order_url": None, "carrier_url": None, "lines": [],
+            "possible_duplicate_of": None, "manual": False, "order_url": None, "carrier_url": None,
+            "shop_order_url": None, "shop_url": None, "lines": [],
             "lines_checked": True}
 
 
@@ -251,7 +252,7 @@ def apply_extraction(store: dict[str, Any], ex: Extraction, email: dict[str, Any
     for t in tracking:
         if not any(same_tracking(t, x) for x in p["tracking"]):     # a mistyped copy is not a second number
             p["tracking"].append(t)
-    for key in ("order_url", "carrier_url"):     # the first email to carry one wins
+    for key in ("order_url", "carrier_url", "shop_order_url", "shop_url"):     # the first email to carry one wins
         if getattr(ex, key) and not p.get(key):
             p[key] = getattr(ex, key)
     for key in ("merchant", "item", "order", "carrier"):
@@ -448,7 +449,8 @@ def merge(store: dict[str, Any], source_id: str, target_id: str, now: datetime, 
     for t in src["tracking"]:
         if not any(same_tracking(t, x) for x in dst["tracking"]):
             dst["tracking"].append(t)
-    for key in ("merchant", "item", "order", "carrier", "eta_date", "eta_window", "order_url", "carrier_url"):
+    for key in ("merchant", "item", "order", "carrier", "eta_date", "eta_window", "order_url", "carrier_url",
+                "shop_order_url", "shop_url"):
         if not dst.get(key) and src.get(key):
             dst[key] = src[key]
     if src.get("status"):
@@ -523,6 +525,60 @@ def last_mile_links(store: dict[str, Any], rows: list[dict]) -> list[tuple[str, 
                 keep_a = bool(a.get("merchant") or a.get("order")) or not (b.get("merchant") or b.get("order"))
                 out.append((b["id"], a["id"]) if keep_a else (a["id"], b["id"]))
     return out
+
+
+NO_TRACKING_REASON = "No tracking number: look it up in the shop"
+SHOP_STATUSES = (None, "ordered", "shipped")
+
+
+def needs_tracking(p: dict[str, Any]) -> bool:
+    """The user may add a number: none yet, not delivered or received. (Amazon's own deliveries have none to add.)"""
+    return (active(p) and not p["tracking"] and p.get("status") not in ("delivered",) and p.get("carrier") != "amazon"
+            and norm_name(p.get("merchant")) != "amazon")
+
+
+def shop_check_due(p: dict[str, Any], now: datetime, start: float, every: float, stop: float) -> str | None:
+    """"check" (open the shop's order page now), "give_up" (too old, flag it) or None. Each parcel ends once: found,
+    unreadable or given up."""
+    state = p.get("shop_check") or {}
+    if state.get("done") or not p.get("shop_order_url") or not needs_tracking(p) or p.get("status") not in SHOP_STATUSES:
+        return None
+    age = now - first_seen(p)
+    if age < timedelta(days=start):
+        return None
+    last = _dt(state.get("at"))
+    if last is None:                      # at least one check, even when the order is already old
+        return "check"
+    if age >= timedelta(days=stop):
+        return "give_up"
+    return "check" if now - last >= timedelta(days=every) else None
+
+
+def shop_check_result(p: dict[str, Any], outcome: str, reason: str, now: datetime, done: bool) -> bool:
+    """Record a check. True when the parcel was flagged (the end of the checks without a number)."""
+    state = p.get("shop_check") or {}
+    p["shop_check"] = {"at": _iso(now), "tries": state.get("tries", 0) + 1, "outcome": outcome, "reason": reason[:60],
+                       "done": done}
+    p["updated"] = _iso(now)
+    if not done or outcome == "found" or p.get("flagged"):
+        return False
+    p.update(flagged=True, flag_reason=NO_TRACKING_REASON)
+    return True
+
+
+def add_tracking(store: dict[str, Any], p: dict[str, Any], number: str, now: datetime, source: str) -> None:
+    """Attach a (tidied) number to a parcel that has none; ValueError when it belongs to another parcel."""
+    if not needs_tracking(p):
+        raise ValueError("This parcel already has a tracking number, or is delivered")
+    if any(same_tracking(number, t) for o in store["parcels"].values() if o is not p and not o.get("merged_into")
+           for t in o["tracking"]):
+        raise ValueError("That tracking number belongs to another parcel")
+    p["tracking"].append(number)
+    if p.get("flagged") and p.get("flag_reason") == NO_TRACKING_REASON:
+        p.update(flagged=False, flag_reason=None, flag_cleared_at=_iso(now))
+    p["shop_check"] = {**(p.get("shop_check") or {}), "done": True}
+    p["updated"] = _iso(now)
+    set_status(p, "shipped", now, source)
 
 
 def status_rank(p: dict[str, Any], today: date | None = None) -> int:
@@ -606,12 +662,13 @@ def view(p: dict[str, Any], today: date) -> dict[str, Any]:
             "updated": p.get("t17", {}).get("at") if live else (p["emails"][-1]["date"] if p["emails"] else p["updated"]),
             "url": tracking_url(own, number) if number else None,
             "order": p.get("order"), "merchant": p.get("merchant"), "location": p["t17"].get("location") if live else None,
-            "order_url": p.get("order_url") or order_page(p.get("merchant") or ("Amazon" if amazon else None), p.get("order")),
+            "order_url": p.get("order_url") or p.get("shop_order_url") or order_page(p.get("merchant") or ("Amazon" if amazon else None), p.get("order")),
             # a built address first: the email's link is usually a mail-tracking redirect, which hides the destination
             "carrier_url": carrier_page(own, number) or (p.get("carrier_url") if own == p.get("carrier") else None),
             "t17_url": tracking_url(own, number) if number and not amazon else None,
             "emails": [{"date": e.get("date"), "subject": (e.get("subject") or "")[:90], "note": e.get("note")}
                        for e in p["emails"][-6:]],
+            "shop_url": p.get("shop_url"), "needs_tracking": needs_tracking(p),
             "flagged": bool(p.get("flagged")), "flag_reason": p.get("flag_reason"),
             "tracking_numbers": list(p["tracking"]),
             # parcels merged into this one: "Evri parcel (H09XYZ0000000042) · 11 Nov · same parcel on Ship24"

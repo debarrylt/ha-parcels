@@ -28,13 +28,14 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from . import llm, mailbox, model
+from . import llm, mailbox, model, shop
 from .const import (AI_NONE, AI_OLLAMA, AI_TASK, CONF_AI_ENTITY, CONF_AI_MODE, CONF_OLLAMA_KEY, CONF_OLLAMA_MODEL,
-                    CONF_OLLAMA_URL, CONF_SHIP24_KEY, CONF_T17_PASSWORD, CONF_T17_USERNAME, DEFAULT_OLLAMA_MODEL,
+                    CONF_OLLAMA_URL, CONF_SHIP24_KEY, CONF_SHOP_CHECK, CONF_SHOP_EVERY, CONF_SHOP_START,
+                    CONF_SHOP_STOP, CONF_T17_PASSWORD, CONF_T17_USERNAME, DEFAULT_OLLAMA_MODEL,
                     uses_own_credentials, LAST_MILE_EVERY, SHIP24_URL, AI_CHECK_INTERVAL, CARRIER_FIX_AFTER, EMAIL_RECORD_DAYS, EVENT, FIRST_RUN_DAYS, HOUSEKEEPING_INTERVAL,
-                    SCAN_INTERVAL, SIGNAL_UPDATE, SLOTS, STORE_KEY, STORE_VERSION, TRACK_INTERVAL)
+                    SCAN_INTERVAL, SHOP_CHECK_INTERVAL, SHOP_DEFAULTS, SIGNAL_UPDATE, SLOTS, STORE_KEY, STORE_VERSION, TRACK_INTERVAL)
 from .parser import (Extraction, extract, is_home, normalise_tracking, rules,
-                     pick_links)
+                     pick_links, shop_links, valid_tracking)
 
 _LOGGER = logging.getLogger(__name__)
 MAX_AI_FAILS = 3        # unusable AI answers for one email before its rule-parser result is kept as final
@@ -53,6 +54,7 @@ class ParcelsManager:
         self.last_error: str | None = None
         self._lock = asyncio.Lock()
         self._scan_later = None
+        self._shop_running = False
         self.last_mile: str | None = None      # outcome of the last 17TRACK detail lookup (sensor attribute)
 
     # ---------------------------------------------------------------- lifecycle
@@ -63,6 +65,7 @@ class ParcelsManager:
         e.async_on_unload(async_track_time_interval(self.hass, self._tick_ai, AI_CHECK_INTERVAL))
         e.async_on_unload(async_track_time_interval(self.hass, self._tick_track, TRACK_INTERVAL))
         e.async_on_unload(async_track_time_interval(self.hass, self._tick_housekeeping, HOUSEKEEPING_INTERVAL))
+        e.async_on_unload(async_track_time_interval(self.hass, self._tick_shop, SHOP_CHECK_INTERVAL))
         if not self.own:    # legacy: HA's imap integration wakes us up; otherwise the 5-minute scan is the trigger
             e.async_on_unload(self.hass.bus.async_listen("imap_content", self._on_imap))
         e.async_on_unload(async_at_started(self.hass, self._on_started))
@@ -85,6 +88,7 @@ class ParcelsManager:
         """At start: mail, then 17TRACK straight away (not 15 minutes later)."""
         await self.async_scan()
         await self.async_track()
+        await self.async_shop_check()
 
     def _background(self, coro, name: str) -> None:
         self.entry.async_create_background_task(self.hass, coro, name)
@@ -112,6 +116,9 @@ class ParcelsManager:
 
     async def _tick_track(self, _now) -> None:
         await self.async_track()
+
+    async def _tick_shop(self, _now) -> None:
+        await self.async_shop_check()
 
     async def _tick_housekeeping(self, _now) -> None:
         async with self._lock:
@@ -223,6 +230,7 @@ class ParcelsManager:
             self.last_scan, self.last_error = dt_util.now(), None
             self._housekeeping()
             await self._backfill_links(entry)
+            await self._backfill_shop_links(entry)
             await self._backfill_ship_to(entry)
             await self._backfill_notes(entry)
             await self._recheck_delivered(entry)
@@ -251,6 +259,25 @@ class ParcelsManager:
                     p["order_url"] = p.get("order_url") or order
                     p["carrier_url"] = p.get("carrier_url") or track
             p["links_checked"] = True
+
+    async def _backfill_shop_links(self, entry: ConfigEntry) -> None:
+        """Once per active parcel without a number recorded before Shopify's long links were kept."""
+        todo = [p for p in self.data["parcels"].values() if model.needs_tracking(p) and not p.get("shop_links_checked")
+                and not p.get("shop_order_url")]
+        uids = sorted({e["uid"] for p in todo for e in p["emails"] if e.get("uid")})
+        try:
+            mails = await mailbox.fetch_uids(entry.data, uids) if uids else {}
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.info("Parcels: could not re-read emails for their shop links: %r", err)
+            return
+        for p in todo:
+            for e in p["emails"]:
+                mail = mails.get(e.get("uid"))
+                if mail and mail.key == e.get("key"):
+                    order, app = shop_links(mail.links)
+                    p["shop_order_url"] = p.get("shop_order_url") or order
+                    p["shop_url"] = p.get("shop_url") or app
+            p["shop_links_checked"] = True
 
     def _set_ship_to(self, p: dict, ship_to: str | None) -> None:
         """Keep the address the latest email names; `elsewhere` = it is not home (not counted as
@@ -629,6 +656,66 @@ class ParcelsManager:
             except Exception as err:  # noqa: BLE001
                 _LOGGER.info("Parcels: 17TRACK archive %s: %s", number, err)
 
+    # ---------------------------------------------------------------- shop order page (orders without a number)
+    def _shop_option(self, key: str):
+        return self.entry.options.get(key, SHOP_DEFAULTS[key])
+
+    async def async_shop_check(self) -> None:
+        """Open the order page of orders still without a tracking number (see shop.py), when switched on."""
+        if not self._shop_option(CONF_SHOP_CHECK) or self._shop_running:
+            return
+        self._shop_running = True
+        try:
+            await self._shop_check()
+        finally:
+            self._shop_running = False
+
+    async def _shop_check(self) -> None:
+        limits = [float(self._shop_option(k)) for k in (CONF_SHOP_START, CONF_SHOP_EVERY, CONF_SHOP_STOP)]
+        found = False
+        for p in list(self.data["parcels"].values()):
+            due = model.shop_check_due(p, dt_util.now(), *limits)
+            if due is None:
+                continue
+            if due == "check":
+                # recorded before the visit, so a crash or restart cannot turn into a visit every time
+                model.shop_check_result(p, shop.RETRY, "started", dt_util.now(), False)
+                await self.async_flush()
+            res = await shop.check(p["shop_order_url"]) if due == "check" else shop.Result(shop.NOT_YET, reason="gave up")
+            now = dt_util.now()
+            async with self._lock:
+                if not model.needs_tracking(p) or p["id"] not in self.data["parcels"]:     # an email was faster
+                    continue
+                if due == "check":
+                    p["shop_check"]["tries"] -= 1          # shop_check_result counts it again, with its outcome
+                if res.outcome == shop.FOUND:
+                    try:
+                        model.add_tracking(self.data, p, res.number, now, "shop")
+                    except ValueError as err:
+                        res = shop.Result(shop.UNREADABLE, reason=str(err))
+                done = res.outcome in (shop.FOUND, shop.UNREADABLE) or due == "give_up"
+                _LOGGER.info("Parcels: order page of %s: %s%s", model.title(p), res.outcome,
+                             f" ({res.reason})" if res.reason else "")
+                flagged = model.shop_check_result(p, res.outcome, res.reason, now, done)
+                self._fire([("follow_up", p)] if flagged else [])
+            found = found or res.outcome == shop.FOUND
+            self._changed()
+        if found:
+            await self.async_track()
+
+    async def async_add_tracking(self, p: dict, number: str) -> None:
+        """A number the user typed (dashboard, action)."""
+        value = valid_tracking(number)
+        if not value:
+            raise HomeAssistantError("That does not look like a tracking number (8 to 34 letters and digits)")
+        async with self._lock:
+            try:
+                model.add_tracking(self.data, p, value, dt_util.now(), "user")
+            except ValueError as err:
+                raise HomeAssistantError(str(err)) from err
+        self._changed()
+        await self.async_track()
+
     # ---------------------------------------------------------------- housekeeping
     def _housekeeping(self) -> None:
         now = dt_util.now()
@@ -727,6 +814,8 @@ class ParcelsManager:
             p.update(eta_date=due.isoformat(), eta_window=None, eta_at=model._iso(dt_util.now()))
         if tracking:
             t = normalise_tracking(tracking)
+            if p.get("flag_reason") == model.NO_TRACKING_REASON:      # what the flag asked for
+                p.update(flagged=False, flag_reason=None)
             if t not in p["tracking"]:
                 p["tracking"].append(t)                # added to 17TRACK at the next sync (t17_registered)
         p["updated"] = model._iso(dt_util.now())

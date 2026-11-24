@@ -140,6 +140,7 @@ The setup wizard has these pages. Everything is checked before you can continue.
 | **AI Task entity** | Any `ai_task` entity | - |
 | **Ollama server** | URL, model (default `qwen3:30b`), optional API key | `GET {url}/api/tags` must answer and list the model. |
 | **Home address** (optional) | Home postcode, home names (comma-separated) | - |
+| **Orders without a tracking number** (optional) | On/off (default off), first check after (3 days), check again every (3 days), stop after (30 days) | Stop after must not be before the first check. |
 
 The mailbox login stays in the IMAP integration. The chosen IMAP entry, the 17TRACK login and the Ship24 and Ollama keys are stored in the config entry (`.storage`, like any
 other integration); everything else is an option.
@@ -151,6 +152,14 @@ Password fields stay blank; leave them blank to keep the stored value. The integ
 **Address check.** An email that names a shipping address is compared with your postcode (decisive when both have one)
 or, failing that, your home names (for example the name of your Amazon address-book entry). A parcel for another
 address is marked "elsewhere" and not counted as arriving today. Leave both empty to switch the check off.
+
+**Orders without a tracking number.** Some Shopify shops never email the number. When switched on, Parcels opens the
+order link from the shop's email a set number of days after the order. A number shown there is added. A page that shows
+none yet is checked again every few days; a page that needs a login or a browser, or still shows nothing at the end, gets
+the parcel flagged ("No tracking number: look it up in the shop") with the order and Shop links on its tile, so you can
+add the number yourself: `text.parcels_slot_N_tracking`, `parcels.add_tracking`, or the to-do item's description.
+Expect the flag often: Shopify's newer order pages are drawn by a script and hide the number without a login, and Parcels
+does not work around that. Shopify also limits visits without a login, so each check may use one up.
 
 ### Gmail and Outlook
 
@@ -208,7 +217,8 @@ One service device, "Parcels":
 |---|---|
 | `todo.parcels` | Parcels in flight plus those received in the last 7 days. Ticking an item = received; add one by hand (put `tracking: <number>` in the description to track it). |
 | `sensor.parcels_in_flight` | Number of parcels in flight. Attributes: `arriving_today`, `out_for_delivery`, `delivered_to_confirm`, `follow_up`, `details_pending`, `more`, `delivered_log`, `last_scan`, `last_error`, `last_mile`. |
-| `sensor.parcels_slot_1` ... `_8` | One row each, ordered delivered-to-confirm, flagged, then by ETA. State is the title ("Amazon: USB-C hub") or `none`. Attributes: `parcel_id`, `title`, `eta`, `status`, `carrier`, `tracking`, `tracking_numbers`, `live`, `last_event`, `location`, `url`, `carrier_url`, `order_url`, `t17_url`, `order`, `merchant`, `emails`, `flagged`, `flag_reason`, `delivered`, `received`, `details_pending`, `possible_duplicate_of`, `ship_to`, `elsewhere`, `line`. |
+| `sensor.parcels_slot_1` ... `_8` | One row each, ordered delivered-to-confirm, flagged, then by ETA. State is the title ("Amazon: USB-C hub") or `none`. Attributes: `parcel_id`, `title`, `eta`, `status`, `carrier`, `tracking`, `tracking_numbers`, `live`, `last_event`, `location`, `url`, `carrier_url`, `order_url`, `shop_url`, `t17_url`, `needs_tracking`, `order`, `merchant`, `emails`, `flagged`, `flag_reason`, `delivered`, `received`, `details_pending`, `possible_duplicate_of`, `ship_to`, `elsewhere`, `line`. |
+| `text.parcels_slot_N_tracking` | Type the tracking number of the parcel in slot N. Available only while it has none. |
 | `binary_sensor.parcels_ai_online` | The configured AI answers (AI Task entity available, or Ollama reachable with the model). Always off in rules-only mode. Attribute `pending_emails`. |
 | `button.parcels_slot_N_received` / `_follow_up` | Act on whichever parcel is currently in slot N (available while the slot is filled). |
 
@@ -222,6 +232,7 @@ Entity IDs follow the names above for a default setup.
 | `parcels.follow_up` | `parcel_id` or `slot`, `flag`, `reason` | Flag or unflag; omit `flag` to toggle. |
 | `parcels.merge` | `parcel_id`, `into` | Merge a duplicate into another parcel. |
 | `parcels.remove` | `parcel_id` or `slot` | Delete a parcel (wrong match, spam). |
+| `parcels.add_tracking` | `parcel_id` or `slot`, `tracking` | Add a number to a parcel that has none. |
 | `parcels.scan` | - | Check the mailbox, retry pending emails and refresh 17TRACK now. |
 | `parcels.reload_rules` | - | Read `rules.yaml` and `parcels_rules.yaml` again (see [Adapting the rules](#adapting-the-rules-to-your-country)). A wrong file raises a repair and keeps the previous rules. |
 | `parcels.test_email` | `subject`, `sender`, `body` (text or HTML), `date` | Runs the rules on a made-up email and returns what they read. Response only; nothing is stored. |
@@ -274,6 +285,9 @@ editor.
 - With an AI Task entity, the text of shipping-related emails (not other mail) is sent to whatever service is behind
   that entity. With Ollama it is sent to your Ollama server (nothing leaves your network if it is local).
 - 17TRACK and Ship24 receive tracking numbers (and a short parcel title for 17TRACK), not email content.
+- The order page check (off by default) visits the shop's site from your Home Assistant. The order link signs in to that
+  order: it is kept in Home Assistant's storage (so in backups) and shown as an attribute, left out of the recorder history
+  and never logged. The shop sees the visit; only the number is kept.
 - Use a dedicated mailbox that receives only shipping mail (a forwarding filter in your main account works) with its own
   app password, so Parcels never has access to your main mailbox.
 - Credentials live in Home Assistant's config entry storage; keep your Home Assistant backups safe.

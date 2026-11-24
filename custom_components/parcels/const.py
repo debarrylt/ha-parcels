@@ -30,9 +30,17 @@ CONF_OLLAMA_URL = "ollama_url"
 CONF_OLLAMA_MODEL = "ollama_model"
 CONF_HOME_POSTCODE = "home_postcode"
 CONF_HOME_NAMES = "home_names"
+# shop order page check (orders without a tracking number)
+CONF_SHOP_CHECK = "shop_check"                # on / off (off by default)
+CONF_SHOP_START = "shop_check_start_days"     # first check this many days after the order
+CONF_SHOP_EVERY = "shop_check_every_days"     # then every this many days
+CONF_SHOP_STOP = "shop_check_stop_days"       # give up (and flag) this many days after the order
+SHOP_DEFAULTS = {CONF_SHOP_CHECK: False, CONF_SHOP_START: 3, CONF_SHOP_EVERY: 3, CONF_SHOP_STOP: 30}
+SHOP_CHECK_INTERVAL = timedelta(minutes=30)
 
 DATA_KEYS = (CONF_IMAP_ENTRY, CONF_T17_USERNAME, CONF_T17_PASSWORD, CONF_SHIP24_KEY, CONF_OLLAMA_KEY)
-OPTION_KEYS = (CONF_AI_MODE, CONF_AI_ENTITY, CONF_OLLAMA_URL, CONF_OLLAMA_MODEL, CONF_HOME_POSTCODE, CONF_HOME_NAMES)
+OPTION_KEYS = (CONF_AI_MODE, CONF_AI_ENTITY, CONF_OLLAMA_URL, CONF_OLLAMA_MODEL, CONF_HOME_POSTCODE, CONF_HOME_NAMES,
+               CONF_SHOP_CHECK, CONF_SHOP_START, CONF_SHOP_EVERY, CONF_SHOP_STOP)
 SECRET_KEYS = (CONF_T17_PASSWORD, CONF_SHIP24_KEY, CONF_OLLAMA_KEY)
 
 AI_NONE, AI_TASK, AI_OLLAMA = "none", "ai_task", "ollama"

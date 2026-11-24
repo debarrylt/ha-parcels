@@ -36,7 +36,7 @@ class InFlight(ParcelsEntity, SensorEntity):
 
 class Slot(ParcelsEntity, SensorEntity):
     _attr_icon = "mdi:package-variant"
-    _unrecorded_attributes = frozenset({"url", "order_url", "carrier_url", "t17_url", "emails"})
+    _unrecorded_attributes = frozenset({"url", "order_url", "carrier_url", "shop_url", "t17_url", "emails"})
 
     def __init__(self, manager, n: int) -> None:
         super().__init__(manager, f"slot_{n}")

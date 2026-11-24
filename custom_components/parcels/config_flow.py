@@ -23,14 +23,16 @@ import aiohttp
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_create_clientsession, async_get_clientsession
-from homeassistant.helpers.selector import (EntitySelector, EntitySelectorConfig, SelectSelector, SelectSelectorConfig, SelectSelectorMode, TextSelector,
+from homeassistant.helpers.selector import (BooleanSelector, EntitySelector, EntitySelectorConfig, NumberSelector, NumberSelectorConfig,
+                                            NumberSelectorMode, SelectSelector, SelectSelectorConfig, SelectSelectorMode, TextSelector,
                                             TextSelectorConfig, TextSelectorType)
 
 from . import llm, mailbox
 from .const import (AI_NONE, AI_OLLAMA, AI_TASK, CONF_AI_ENTITY, CONF_AI_MODE, CONF_HOME_NAMES, CONF_HOME_POSTCODE,
                     CONF_IMAP_ENTRY,
-                    CONF_OLLAMA_KEY, CONF_OLLAMA_MODEL, CONF_OLLAMA_URL, CONF_SHIP24_KEY, CONF_T17_PASSWORD,
-                    CONF_T17_USERNAME, DEFAULT_OLLAMA_MODEL, DOMAIN, FLOW_VERSION,
+                    CONF_OLLAMA_KEY, CONF_OLLAMA_MODEL, CONF_OLLAMA_URL, CONF_SHIP24_KEY, CONF_SHOP_CHECK,
+                    CONF_SHOP_EVERY, CONF_SHOP_START, CONF_SHOP_STOP, CONF_T17_PASSWORD,
+                    CONF_T17_USERNAME, DEFAULT_OLLAMA_MODEL, DOMAIN, FLOW_VERSION, SHOP_DEFAULTS,
                     uses_own_credentials)
 from .flow_helpers import EMAIL_KEYS, check_ship24_key, merge_secret, normalise_url, split_data_options, state_from_entry
 
@@ -38,6 +40,23 @@ _LOGGER = logging.getLogger(__name__)
 
 PASSWORD = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 URL = TextSelector(TextSelectorConfig(type=TextSelectorType.URL))
+
+
+def _days(low: int, high: int) -> NumberSelector:
+    return NumberSelector(NumberSelectorConfig(min=low, max=high, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="days"))
+
+
+def _shop_schema(values) -> dict:
+    def default(key):
+        return values.get(key, SHOP_DEFAULTS[key])
+    return {vol.Required(CONF_SHOP_CHECK, default=default(CONF_SHOP_CHECK)): BooleanSelector(),
+            vol.Required(CONF_SHOP_START, default=default(CONF_SHOP_START)): _days(1, 60),
+            vol.Required(CONF_SHOP_EVERY, default=default(CONF_SHOP_EVERY)): _days(1, 30),
+            vol.Required(CONF_SHOP_STOP, default=default(CONF_SHOP_STOP)): _days(1, 120)}
+
+
+def _shop_errors(values) -> dict[str, str]:
+    return {CONF_SHOP_STOP: "shop_stop_before_start"} if values[CONF_SHOP_STOP] < values[CONF_SHOP_START] else {}
 
 
 class _Steps:
@@ -166,9 +185,18 @@ class _Steps:
         if user_input is not None:
             self._state = {**self._state, CONF_HOME_POSTCODE: (user_input.get(CONF_HOME_POSTCODE) or "").strip(),
                            CONF_HOME_NAMES: (user_input.get(CONF_HOME_NAMES) or "").strip()}
-            return await self._finish()
+            return await self.async_step_shop()
         return self._form("home", {vol.Optional(CONF_HOME_POSTCODE): TextSelector(),
                                    vol.Optional(CONF_HOME_NAMES): TextSelector()})
+
+    # ------------------------------------------------------------------ shop order page check
+    async def async_step_shop(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            self._state = {**self._state, **user_input}
+            if not (errors := _shop_errors(user_input)):
+                return await self._finish()
+        return self._form("shop", _shop_schema(self._state), errors)
 
 
 class ParcelsConfigFlow(_Steps, ConfigFlow, domain=DOMAIN):
@@ -233,10 +261,14 @@ class ParcelsOptionsFlow(_Steps, OptionsFlow):
             if new[CONF_SHIP24_KEY] and new[CONF_SHIP24_KEY] != opts.get(CONF_SHIP24_KEY):
                 if code := await check_ship24_key(async_get_clientsession(self.hass), new[CONF_SHIP24_KEY]):
                     errors[CONF_SHIP24_KEY] = code
+            new.update({k: user_input[k] for k in SHOP_DEFAULTS})
+            errors.update(_shop_errors(new))
             if not errors:
                 return self.async_create_entry(data=new)
+            opts = {**opts, **new}
         schema = vol.Schema({
             vol.Optional(CONF_HOME_POSTCODE, default=opts.get(CONF_HOME_POSTCODE, "")): TextSelector(),
             vol.Optional(CONF_HOME_NAMES, default=opts.get(CONF_HOME_NAMES, "")): TextSelector(),
-            vol.Optional(CONF_SHIP24_KEY, default=opts.get(CONF_SHIP24_KEY, "")): PASSWORD})
+            vol.Optional(CONF_SHIP24_KEY, default=opts.get(CONF_SHIP24_KEY, "")): PASSWORD,
+            **_shop_schema(opts)})
         return self.async_show_form(step_id="legacy", data_schema=schema, errors=errors)

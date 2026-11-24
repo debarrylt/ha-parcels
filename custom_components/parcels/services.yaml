@@ -17,6 +17,11 @@ remove:
   fields:
     parcel_id: {selector: {text: {}}}
     slot: {selector: {number: {min: 1, max: 99, mode: box}}}
+add_tracking:
+  fields:
+    parcel_id: {selector: {text: {}}}
+    slot: {selector: {number: {min: 1, max: 99, mode: box}}}
+    tracking: {required: true, example: "H09XYZ0000000042", selector: {text: {}}}
 scan:
 delivered:
   fields:

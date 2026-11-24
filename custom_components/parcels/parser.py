@@ -52,6 +52,11 @@ STATUS_RANK = {"ordered": 0, "shipped": 1, "in_transit": 2, "out_for_delivery": 
 A_TAG = re.compile(r"""<a\b[^>]*?\bhref\s*=\s*["']([^"']+)["'][^>]*>(.*?)</a>""", re.I | re.S)
 BARE_URL = re.compile(r"https?://[^\s<>\"']+", re.I)
 MAX_URL = 800
+MAX_SHOP_URL = 2048      # Shopify's emailed links carry a sign-in key or a mail-tracking code (1649 characters, Nov 2026)
+SHOP_APP = re.compile(r"https://(?:open\.)?shop\.app/", re.I)
+SHOP_APP_LABEL = re.compile(r"^track order with(?: shop)?$", re.I)           # the logo in "Track order with <Shop>" has no text
+SHOPIFY_ORDER = re.compile(r"https://[^/\s]+/(?:\d{6,}/orders/[0-9a-f]{32}\b|_t/c/v\d+/)", re.I)
+TRACKING_LABEL = re.compile(r"\btracking\s*(?:number|no\.?|code|id)?\s*[:#]?\s*([A-Z0-9](?:[A-Z0-9-]{6,30})[A-Z0-9])\b", re.I)
 
 
 @dataclass
@@ -73,6 +78,8 @@ class Extraction:
     subject: str = ""
     order_url: str | None = None          # the merchant's order page, from the email's links
     carrier_url: str | None = None        # the carrier's tracking page, from the email's links
+    shop_order_url: str | None = None     # a Shopify shop's order page (signs in to that order)
+    shop_url: str | None = None           # the order in the Shop app
     ship_to: str | None = None            # who / where the email says it goes: "Sam – LONDON", "… London, ZZ99ZZ"
 
 
@@ -289,13 +296,49 @@ def find_links(html_body: str | None, plain: str | None) -> list[tuple[str, str]
     return links[:300]
 
 
-def safe_url(url: str | None) -> str | None:
+def safe_url(url: str | None, limit: int = MAX_URL) -> str | None:
     """A web link fit for a dashboard: http(s) only, no characters that could break out of a Markdown link."""
-    if not url or len(url) > MAX_URL or not re.match(r"https?://[^/\s]+\.[^/\s]+", url, re.I):
+    if not url or len(url) > limit or not re.match(r"https?://[^/\s]+\.[^/\s]+", url, re.I):
         return None
     if re.search(r"[\s<>\"'`\\]", url):
         return None
     return url.replace("(", "%28").replace(")", "%29")
+
+
+def shop_links(links: list[tuple[str, str]]) -> tuple[str | None, str | None]:
+    """(order page, order in the Shop app) from a Shopify shop's email. Forwarded emails hide both behind the shop's
+    mail-tracking address, so there the link text decides."""
+    order = shop = None
+    for url, label in links:
+        url, label = safe_url(url, MAX_SHOP_URL), label.strip()
+        if not url:
+            continue
+        wrapped = SHOPIFY_ORDER.match(url)
+        if not shop and (SHOP_APP.match(url) or (wrapped and SHOP_APP_LABEL.match(label))):
+            shop = url if SHOP_APP_LABEL.match(label) or "track" in label.lower() else None
+        elif not order and wrapped and (_ACTIVE.order_label.search(label) or "/_t/c/" not in url):
+            order = url
+    return order, shop
+
+
+def fits_tracking_label(text: str, links: list[tuple[str, str]]) -> str | None:
+    """The tracking number an order page names: "Tracking number: X", or a number of a known carrier as the text of a
+    link. Other codes on the page (order numbers, SKUs) don't count."""
+    for m in TRACKING_LABEL.finditer(text):
+        value = valid_tracking(m.group(1))
+        if value:
+            return value
+    for url, label in links:
+        value = valid_tracking(label) if re.search(r"track|parcel", url, re.I) else None
+        if value:
+            return value
+    return None
+
+
+def valid_tracking(value: str | None) -> str | None:
+    """A typed or read tracking number, tidied; None when it can't be one (8-34 letters and digits, 4+ digits)."""
+    value = normalise_tracking(value or "")
+    return value if re.fullmatch(r"[A-Z0-9]{8,34}", value) and len(re.findall(r"\d", value)) >= 4 else None
 
 
 def pick_links(links: list[tuple[str, str]], tracking: list[str], carrier: str | None = None) -> tuple[str | None, str | None]:
@@ -308,7 +351,9 @@ def pick_links(links: list[tuple[str, str]], tracking: list[str], carrier: str |
     numbers = [t.lower() for t in tracking]
     for url, label in links:
         url = safe_url(url)
-        if not url or _ACTIVE.not_a_parcel_link.search(url) or _ACTIVE.not_a_parcel_link.search(label) or "17track" in url.lower():
+        if not url or SHOP_APP.match(url) or SHOP_APP_LABEL.match(label.strip()):     # see shop_links
+            continue
+        if _ACTIVE.not_a_parcel_link.search(url) or _ACTIVE.not_a_parcel_link.search(label) or "17track" in url.lower():
             continue
         low = url.lower()
         if not track and _ACTIVE.track_label.search(label):
@@ -369,6 +414,7 @@ def extract(subject: str, sender: str, text: str, sent_at: datetime | None,
     if sent_at:
         ex.eta_date, ex.eta_window = _find_eta(subject, plain_text, sent_at.date())
     ex.order_url, ex.carrier_url = pick_links(links or [], ex.tracking, carrier)
+    ex.shop_order_url, ex.shop_url = shop_links(links or [])
     ex.ship_to = _find_ship_to(text)
     ex.is_shipping = bool(carrier or ex.tracking or (ex.status and r.shipping_hint.search(subject)))
     return ex

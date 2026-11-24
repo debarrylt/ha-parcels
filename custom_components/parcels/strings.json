@@ -80,6 +80,22 @@
           "home_postcode": "A UK postcode decides when an email names one.",
           "home_names": "Comma-separated names your orders use for the delivery address, for example the name on an Amazon address-book entry."
         }
+      },
+      "shop": {
+        "title": "Orders without a tracking number (optional)",
+        "description": "Some shops (Shopify) never email the tracking number. Parcels can look for it on the order page the shop's email links to. If the page shows no number, needs a login or cannot be read, the parcel is flagged with the shop link so you can look it up and add it.",
+        "data": {
+          "shop_check": "Check the shop's order page",
+          "shop_check_start_days": "First check after",
+          "shop_check_every_days": "Check again every",
+          "shop_check_stop_days": "Stop after"
+        },
+        "data_description": {
+          "shop_check": "Off by default. Opens the order link from a Shopify shop's email when no email gave a tracking number. The shop sees the visits, and Shopify only allows a limited number of visits without a login.",
+          "shop_check_start_days": "Days after the order.",
+          "shop_check_every_days": "Only while the page opens but shows no number yet.",
+          "shop_check_stop_days": "Days after the order. The parcel is then flagged for you."
+        }
       }
     },
     "error": {
@@ -88,7 +104,8 @@
       "invalid_auth": "The server refused the login. Check the username and password.",
       "invalid_ship24_key": "Ship24 refused this API key.",
       "ship24_unreachable": "Could not check the key: Ship24 did not answer as expected. Try again later.",
-      "model_not_found": "That model is not available on the server. Pull it first."
+      "model_not_found": "That model is not available on the server. Pull it first.",
+      "shop_stop_before_start": "Stop after must not be earlier than the first check."
     },
     "abort": {
       "already_configured": "Parcels is already set up.",
@@ -106,12 +123,20 @@
         "data": {
           "home_postcode": "Home postcode",
           "home_names": "Home names",
-          "ship24_api_key": "Ship24 API key"
+          "ship24_api_key": "Ship24 API key",
+          "shop_check": "Check the shop's order page",
+          "shop_check_start_days": "First check after",
+          "shop_check_every_days": "Check again every",
+          "shop_check_stop_days": "Stop after"
         },
         "data_description": {
           "home_postcode": "A UK postcode decides when an email names one.",
           "home_names": "Comma-separated names your orders use for the delivery address.",
-          "ship24_api_key": "Optional, ship24.com free plan. Checked when you save."
+          "ship24_api_key": "Optional, ship24.com free plan. Checked when you save.",
+          "shop_check": "Off by default. Opens the order link from a Shopify shop's email when no email gave a tracking number. The shop sees the visits, and Shopify only allows a limited number of visits without a login.",
+          "shop_check_start_days": "Days after the order.",
+          "shop_check_every_days": "Only while the page opens but shows no number yet.",
+          "shop_check_stop_days": "Days after the order. The parcel is then flagged for you."
         }
       },
       "tracking": {
@@ -173,6 +198,22 @@
           "home_postcode": "A UK postcode decides when an email names one.",
           "home_names": "Comma-separated names your orders use for the delivery address, for example the name on an Amazon address-book entry."
         }
+      },
+      "shop": {
+        "title": "Orders without a tracking number (optional)",
+        "description": "Some shops (Shopify) never email the tracking number. Parcels can look for it on the order page the shop's email links to. If the page shows no number, needs a login or cannot be read, the parcel is flagged with the shop link so you can look it up and add it.",
+        "data": {
+          "shop_check": "Check the shop's order page",
+          "shop_check_start_days": "First check after",
+          "shop_check_every_days": "Check again every",
+          "shop_check_stop_days": "Stop after"
+        },
+        "data_description": {
+          "shop_check": "Off by default. Opens the order link from a Shopify shop's email when no email gave a tracking number. The shop sees the visits, and Shopify only allows a limited number of visits without a login.",
+          "shop_check_start_days": "Days after the order.",
+          "shop_check_every_days": "Only while the page opens but shows no number yet.",
+          "shop_check_stop_days": "Days after the order. The parcel is then flagged for you."
+        }
       }
     },
     "error": {
@@ -181,7 +222,8 @@
       "invalid_auth": "The server refused the login. Check the username and password.",
       "invalid_ship24_key": "Ship24 refused this API key.",
       "ship24_unreachable": "Could not check the key: Ship24 did not answer as expected. Try again later.",
-      "model_not_found": "That model is not available on the server. Pull it first."
+      "model_not_found": "That model is not available on the server. Pull it first.",
+      "shop_stop_before_start": "Stop after must not be earlier than the first check."
     }
   },
   "selector": {
@@ -299,6 +341,24 @@
         "date": {
           "name": "Date",
           "description": "When the email was sent (default now)."
+        }
+      }
+    },
+    "add_tracking": {
+      "name": "Add tracking number",
+      "description": "Add a tracking number to a parcel that has none.",
+      "fields": {
+        "parcel_id": {
+          "name": "Parcel ID",
+          "description": "The parcel."
+        },
+        "slot": {
+          "name": "Slot",
+          "description": "The row the parcel is in, instead of its ID."
+        },
+        "tracking": {
+          "name": "Tracking number",
+          "description": "The number from the shop or the Shop app."
         }
       }
     }

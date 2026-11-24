@@ -12,6 +12,8 @@ CONNECT = "homeassistant.components.imap.coordinator.connect_to_server"
 FETCH_NEW = "custom_components.parcels.mailbox.fetch_new"
 CHECK_SHIP24 = "custom_components.parcels.config_flow.check_ship24_key"
 
+SHOP = {"shop_check": False, "shop_check_start_days": 3, "shop_check_every_days": 3, "shop_check_stop_days": 30}
+
 
 def fake_client():
     client = MagicMock()
@@ -42,6 +44,8 @@ async def _flow_to_entry(hass, imap):
     assert r["step_id"] == "home", r
     with patch(FETCH_NEW, AsyncMock(return_value=[])):
         r = await hass.config_entries.flow.async_configure(r["flow_id"], {"home_postcode": "AB1 2CD"})
+        assert r["step_id"] == "shop", r
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], SHOP)
         await hass.async_block_till_done()
     return r
 
@@ -119,6 +123,7 @@ async def test_options_keep_secrets_when_blank(hass):
         r = await hass.config_entries.flow.async_configure(r["flow_id"], {"ship24_api_key": "apik_secret"})
         r = await hass.config_entries.flow.async_configure(r["flow_id"], {"ai_mode": "none"})
         r = await hass.config_entries.flow.async_configure(r["flow_id"], {})
+        r = await hass.config_entries.flow.async_configure(r["flow_id"], SHOP)
         await hass.async_block_till_done()
     entry = hass.config_entries.async_entries(DOMAIN)[0]
     assert entry.data["ship24_api_key"] == "apik_secret"
@@ -130,11 +135,11 @@ async def test_options_keep_secrets_when_blank(hass):
             if r["type"] is not FlowResultType.FORM:
                 break
             steps.append(r["step_id"])
-            user = {"tracking": {}, "ai": {"ai_mode": "none"}, "home": {"home_postcode": "ZZ9 9ZZ"}}[r["step_id"]]
+            user = {"tracking": {}, "ai": {"ai_mode": "none"}, "home": {"home_postcode": "ZZ9 9ZZ"}, "shop": SHOP}[r["step_id"]]
             r = await hass.config_entries.options.async_configure(r["flow_id"], user)
         await hass.async_block_till_done()
     assert r["type"] is FlowResultType.CREATE_ENTRY, (steps, r)
-    assert steps == ["tracking", "ai", "home"]
+    assert steps == ["tracking", "ai", "home", "shop"]
     assert not check.await_count                      # the key was left blank = unchanged: not checked again
     assert entry.data["ship24_api_key"] == "apik_secret", entry.data
     assert entry.data["imap_entry_id"] == imap.entry_id

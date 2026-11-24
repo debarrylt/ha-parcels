@@ -83,6 +83,18 @@ views:
               {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
               {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
               {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('shop_url') %}<br>[Open in Shop]({{ a.get('shop_url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('order_url') %}<br>[View order]({{ a.get('order_url') }}){% endif %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_1_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_1_tracking
+                  name: Add tracking number
           - type: horizontal-stack
             cards:
               - type: tile
@@ -124,6 +136,18 @@ views:
               {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
               {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
               {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('shop_url') %}<br>[Open in Shop]({{ a.get('shop_url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('order_url') %}<br>[View order]({{ a.get('order_url') }}){% endif %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_2_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_2_tracking
+                  name: Add tracking number
           - type: horizontal-stack
             cards:
               - type: tile
@@ -165,6 +189,18 @@ views:
               {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
               {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
               {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('shop_url') %}<br>[Open in Shop]({{ a.get('shop_url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('order_url') %}<br>[View order]({{ a.get('order_url') }}){% endif %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_3_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_3_tracking
+                  name: Add tracking number
           - type: horizontal-stack
             cards:
               - type: tile
@@ -206,6 +242,18 @@ views:
               {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
               {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
               {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('shop_url') %}<br>[Open in Shop]({{ a.get('shop_url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('order_url') %}<br>[View order]({{ a.get('order_url') }}){% endif %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_4_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_4_tracking
+                  name: Add tracking number
           - type: horizontal-stack
             cards:
               - type: tile
@@ -247,6 +295,18 @@ views:
               {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
               {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
               {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('shop_url') %}<br>[Open in Shop]({{ a.get('shop_url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('order_url') %}<br>[View order]({{ a.get('order_url') }}){% endif %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_5_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_5_tracking
+                  name: Add tracking number
           - type: horizontal-stack
             cards:
               - type: tile
@@ -288,6 +348,18 @@ views:
               {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
               {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
               {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('shop_url') %}<br>[Open in Shop]({{ a.get('shop_url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('order_url') %}<br>[View order]({{ a.get('order_url') }}){% endif %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_6_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_6_tracking
+                  name: Add tracking number
           - type: horizontal-stack
             cards:
               - type: tile
@@ -329,6 +401,18 @@ views:
               {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
               {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
               {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('shop_url') %}<br>[Open in Shop]({{ a.get('shop_url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('order_url') %}<br>[View order]({{ a.get('order_url') }}){% endif %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_7_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_7_tracking
+                  name: Add tracking number
           - type: horizontal-stack
             cards:
               - type: tile
@@ -370,6 +454,18 @@ views:
               {% if a.get('last_event') %}<br>{{ a.get('last_event') }}{% endif %}
               {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
               {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('shop_url') %}<br>[Open in Shop]({{ a.get('shop_url') }}){% endif %}
+              {% if a.get('needs_tracking') and a.get('order_url') %}<br>[View order]({{ a.get('order_url') }}){% endif %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_8_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_8_tracking
+                  name: Add tracking number
           - type: horizontal-stack
             cards:
               - type: tile

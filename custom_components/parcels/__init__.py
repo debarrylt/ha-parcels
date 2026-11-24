@@ -32,7 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 RULES_FILE = "parcels_rules.yaml"      # the user's additions to rules.yaml, in the Home Assistant config folder
 RULES_ISSUE = "rules_invalid"
 
-PLATFORMS = [Platform.TODO, Platform.SENSOR, Platform.BUTTON, Platform.BINARY_SENSOR]
+PLATFORMS = [Platform.TODO, Platform.SENSOR, Platform.BUTTON, Platform.BINARY_SENSOR, Platform.TEXT]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 TARGET = {vol.Exclusive("parcel_id", "target"): cv.string, vol.Exclusive("slot", "target"): vol.All(int, vol.Range(1, 99))}
 
@@ -103,6 +103,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         m = _manager(hass)
         await m.async_remove(m.resolve(call.data.get("parcel_id"), call.data.get("slot")))
 
+    async def add_tracking(call: ServiceCall) -> None:
+        m = _manager(hass)
+        await m.async_add_tracking(m.resolve(call.data.get("parcel_id"), call.data.get("slot")), call.data["tracking"])
+
     async def scan(call: ServiceCall) -> None:
         m = _manager(hass)
         await m.async_scan()
@@ -131,6 +135,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.services.async_register(DOMAIN, "merge", merge,
                                  vol.Schema({vol.Required("parcel_id"): cv.string, vol.Required("into"): cv.string}))
     hass.services.async_register(DOMAIN, "remove", remove, vol.Schema(TARGET))
+    hass.services.async_register(DOMAIN, "add_tracking", add_tracking,
+                                 vol.Schema({**TARGET, vol.Required("tracking"): cv.string}))
     hass.services.async_register(DOMAIN, "scan", scan, vol.Schema({}))
     return True
 
