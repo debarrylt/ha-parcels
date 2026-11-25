@@ -1,8 +1,10 @@
 # Example Parcels dashboard. Add it in Settings > Dashboards > (new dashboard) > raw configuration editor, or paste a
-# view into an existing dashboard. Only core Home Assistant cards are used (tile, markdown, heading, grid).
+# view into an existing dashboard. Only core Home Assistant cards are used
+# (tile, markdown, heading, entities, to-do list).
 # One section per row slot (sensor.parcels_slot_N, ordered: delivered-to-confirm, flagged, then by ETA); a slot shows
 # only while a parcel occupies it. Tapping a parcel opens its detail view (subviews parcel-1..8 at the end of the file;
 # the navigation path assumes the dashboard URL /dashboard-parcels, change it to yours).
+# A parcel without a tracking number shows its order and Shop links and a box to type the number; both go once it has one.
 # The to-do list at the bottom holds every parcel: tick = received; add one by hand with "tracking: <number>" in the
 # description.
 title: Parcels
@@ -506,10 +508,11 @@ views:
       - type: grid
         cards:
           - type: markdown
-            title: "{{ states('sensor.parcels_slot_1') }}"
             content: >-
+              **{{ states('sensor.parcels_slot_1') }}**<br><br>
               {% set a = (states.sensor.parcels_slot_1.attributes if states.sensor.parcels_slot_1 else {}) %}
               **Status:** {{ a.get('status') }}<br>
+              {% if a.get('flagged') %}**Follow up:** {{ a.get('flag_reason') }}<br>{% endif %}
               **Expected:** {{ a.get('eta') or 'unknown' }}<br>
               **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
               **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
@@ -517,14 +520,24 @@ views:
               **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
               {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
               {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
-              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
-              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
-              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+              {% set links = [('17TRACK', a.get('t17_url')), ('Carrier page', a.get('carrier_url')), ('Order page', a.get('order_url')), ('Open in Shop', a.get('shop_url'))] | selectattr(1) | list %}
+              {% for label, url in links %}[{{ label }}]({{ url }}){{ ' · ' if not loop.last }}{% endfor %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_1_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_1_tracking
+                  name: Add tracking number
           - type: markdown
             title: Emails
-            content: >-
+            content: |-
               {% set a = (states.sensor.parcels_slot_1.attributes if states.sensor.parcels_slot_1 else {}) %}
-              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% for e in a.get('emails', []) %}
+              - {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
               {% endfor %}
   - title: Parcel 2
     path: parcel-2
@@ -534,10 +547,11 @@ views:
       - type: grid
         cards:
           - type: markdown
-            title: "{{ states('sensor.parcels_slot_2') }}"
             content: >-
+              **{{ states('sensor.parcels_slot_2') }}**<br><br>
               {% set a = (states.sensor.parcels_slot_2.attributes if states.sensor.parcels_slot_2 else {}) %}
               **Status:** {{ a.get('status') }}<br>
+              {% if a.get('flagged') %}**Follow up:** {{ a.get('flag_reason') }}<br>{% endif %}
               **Expected:** {{ a.get('eta') or 'unknown' }}<br>
               **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
               **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
@@ -545,14 +559,24 @@ views:
               **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
               {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
               {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
-              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
-              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
-              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+              {% set links = [('17TRACK', a.get('t17_url')), ('Carrier page', a.get('carrier_url')), ('Order page', a.get('order_url')), ('Open in Shop', a.get('shop_url'))] | selectattr(1) | list %}
+              {% for label, url in links %}[{{ label }}]({{ url }}){{ ' · ' if not loop.last }}{% endfor %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_2_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_2_tracking
+                  name: Add tracking number
           - type: markdown
             title: Emails
-            content: >-
+            content: |-
               {% set a = (states.sensor.parcels_slot_2.attributes if states.sensor.parcels_slot_2 else {}) %}
-              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% for e in a.get('emails', []) %}
+              - {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
               {% endfor %}
   - title: Parcel 3
     path: parcel-3
@@ -562,10 +586,11 @@ views:
       - type: grid
         cards:
           - type: markdown
-            title: "{{ states('sensor.parcels_slot_3') }}"
             content: >-
+              **{{ states('sensor.parcels_slot_3') }}**<br><br>
               {% set a = (states.sensor.parcels_slot_3.attributes if states.sensor.parcels_slot_3 else {}) %}
               **Status:** {{ a.get('status') }}<br>
+              {% if a.get('flagged') %}**Follow up:** {{ a.get('flag_reason') }}<br>{% endif %}
               **Expected:** {{ a.get('eta') or 'unknown' }}<br>
               **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
               **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
@@ -573,14 +598,24 @@ views:
               **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
               {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
               {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
-              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
-              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
-              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+              {% set links = [('17TRACK', a.get('t17_url')), ('Carrier page', a.get('carrier_url')), ('Order page', a.get('order_url')), ('Open in Shop', a.get('shop_url'))] | selectattr(1) | list %}
+              {% for label, url in links %}[{{ label }}]({{ url }}){{ ' · ' if not loop.last }}{% endfor %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_3_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_3_tracking
+                  name: Add tracking number
           - type: markdown
             title: Emails
-            content: >-
+            content: |-
               {% set a = (states.sensor.parcels_slot_3.attributes if states.sensor.parcels_slot_3 else {}) %}
-              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% for e in a.get('emails', []) %}
+              - {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
               {% endfor %}
   - title: Parcel 4
     path: parcel-4
@@ -590,10 +625,11 @@ views:
       - type: grid
         cards:
           - type: markdown
-            title: "{{ states('sensor.parcels_slot_4') }}"
             content: >-
+              **{{ states('sensor.parcels_slot_4') }}**<br><br>
               {% set a = (states.sensor.parcels_slot_4.attributes if states.sensor.parcels_slot_4 else {}) %}
               **Status:** {{ a.get('status') }}<br>
+              {% if a.get('flagged') %}**Follow up:** {{ a.get('flag_reason') }}<br>{% endif %}
               **Expected:** {{ a.get('eta') or 'unknown' }}<br>
               **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
               **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
@@ -601,14 +637,24 @@ views:
               **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
               {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
               {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
-              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
-              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
-              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+              {% set links = [('17TRACK', a.get('t17_url')), ('Carrier page', a.get('carrier_url')), ('Order page', a.get('order_url')), ('Open in Shop', a.get('shop_url'))] | selectattr(1) | list %}
+              {% for label, url in links %}[{{ label }}]({{ url }}){{ ' · ' if not loop.last }}{% endfor %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_4_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_4_tracking
+                  name: Add tracking number
           - type: markdown
             title: Emails
-            content: >-
+            content: |-
               {% set a = (states.sensor.parcels_slot_4.attributes if states.sensor.parcels_slot_4 else {}) %}
-              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% for e in a.get('emails', []) %}
+              - {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
               {% endfor %}
   - title: Parcel 5
     path: parcel-5
@@ -618,10 +664,11 @@ views:
       - type: grid
         cards:
           - type: markdown
-            title: "{{ states('sensor.parcels_slot_5') }}"
             content: >-
+              **{{ states('sensor.parcels_slot_5') }}**<br><br>
               {% set a = (states.sensor.parcels_slot_5.attributes if states.sensor.parcels_slot_5 else {}) %}
               **Status:** {{ a.get('status') }}<br>
+              {% if a.get('flagged') %}**Follow up:** {{ a.get('flag_reason') }}<br>{% endif %}
               **Expected:** {{ a.get('eta') or 'unknown' }}<br>
               **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
               **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
@@ -629,14 +676,24 @@ views:
               **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
               {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
               {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
-              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
-              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
-              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+              {% set links = [('17TRACK', a.get('t17_url')), ('Carrier page', a.get('carrier_url')), ('Order page', a.get('order_url')), ('Open in Shop', a.get('shop_url'))] | selectattr(1) | list %}
+              {% for label, url in links %}[{{ label }}]({{ url }}){{ ' · ' if not loop.last }}{% endfor %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_5_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_5_tracking
+                  name: Add tracking number
           - type: markdown
             title: Emails
-            content: >-
+            content: |-
               {% set a = (states.sensor.parcels_slot_5.attributes if states.sensor.parcels_slot_5 else {}) %}
-              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% for e in a.get('emails', []) %}
+              - {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
               {% endfor %}
   - title: Parcel 6
     path: parcel-6
@@ -646,10 +703,11 @@ views:
       - type: grid
         cards:
           - type: markdown
-            title: "{{ states('sensor.parcels_slot_6') }}"
             content: >-
+              **{{ states('sensor.parcels_slot_6') }}**<br><br>
               {% set a = (states.sensor.parcels_slot_6.attributes if states.sensor.parcels_slot_6 else {}) %}
               **Status:** {{ a.get('status') }}<br>
+              {% if a.get('flagged') %}**Follow up:** {{ a.get('flag_reason') }}<br>{% endif %}
               **Expected:** {{ a.get('eta') or 'unknown' }}<br>
               **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
               **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
@@ -657,14 +715,24 @@ views:
               **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
               {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
               {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
-              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
-              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
-              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+              {% set links = [('17TRACK', a.get('t17_url')), ('Carrier page', a.get('carrier_url')), ('Order page', a.get('order_url')), ('Open in Shop', a.get('shop_url'))] | selectattr(1) | list %}
+              {% for label, url in links %}[{{ label }}]({{ url }}){{ ' · ' if not loop.last }}{% endfor %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_6_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_6_tracking
+                  name: Add tracking number
           - type: markdown
             title: Emails
-            content: >-
+            content: |-
               {% set a = (states.sensor.parcels_slot_6.attributes if states.sensor.parcels_slot_6 else {}) %}
-              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% for e in a.get('emails', []) %}
+              - {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
               {% endfor %}
   - title: Parcel 7
     path: parcel-7
@@ -674,10 +742,11 @@ views:
       - type: grid
         cards:
           - type: markdown
-            title: "{{ states('sensor.parcels_slot_7') }}"
             content: >-
+              **{{ states('sensor.parcels_slot_7') }}**<br><br>
               {% set a = (states.sensor.parcels_slot_7.attributes if states.sensor.parcels_slot_7 else {}) %}
               **Status:** {{ a.get('status') }}<br>
+              {% if a.get('flagged') %}**Follow up:** {{ a.get('flag_reason') }}<br>{% endif %}
               **Expected:** {{ a.get('eta') or 'unknown' }}<br>
               **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
               **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
@@ -685,14 +754,24 @@ views:
               **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
               {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
               {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
-              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
-              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
-              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+              {% set links = [('17TRACK', a.get('t17_url')), ('Carrier page', a.get('carrier_url')), ('Order page', a.get('order_url')), ('Open in Shop', a.get('shop_url'))] | selectattr(1) | list %}
+              {% for label, url in links %}[{{ label }}]({{ url }}){{ ' · ' if not loop.last }}{% endfor %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_7_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_7_tracking
+                  name: Add tracking number
           - type: markdown
             title: Emails
-            content: >-
+            content: |-
               {% set a = (states.sensor.parcels_slot_7.attributes if states.sensor.parcels_slot_7 else {}) %}
-              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% for e in a.get('emails', []) %}
+              - {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
               {% endfor %}
   - title: Parcel 8
     path: parcel-8
@@ -702,10 +781,11 @@ views:
       - type: grid
         cards:
           - type: markdown
-            title: "{{ states('sensor.parcels_slot_8') }}"
             content: >-
+              **{{ states('sensor.parcels_slot_8') }}**<br><br>
               {% set a = (states.sensor.parcels_slot_8.attributes if states.sensor.parcels_slot_8 else {}) %}
               **Status:** {{ a.get('status') }}<br>
+              {% if a.get('flagged') %}**Follow up:** {{ a.get('flag_reason') }}<br>{% endif %}
               **Expected:** {{ a.get('eta') or 'unknown' }}<br>
               **Carrier:** {{ a.get('carrier') or 'unknown' }}<br>
               **Merchant:** {{ a.get('merchant') or 'unknown' }}<br>
@@ -713,12 +793,22 @@ views:
               **Tracking:** {{ a.get('tracking_numbers', []) | join(', ') or '-' }}<br>
               {% if a.get('location') %}**Last location:** {{ a.get('location') }}<br>{% endif %}
               {% if a.get('last_event') %}**Last carrier event:** {{ a.get('last_event') }}<br>{% endif %}
-              {% if a.get('t17_url') %}[17TRACK]({{ a.get('t17_url') }}){% endif %}
-              {% if a.get('carrier_url') %} · [Carrier page]({{ a.get('carrier_url') }}){% endif %}
-              {% if a.get('order_url') %} · [Order page]({{ a.get('order_url') }}){% endif %}
+              {% set links = [('17TRACK', a.get('t17_url')), ('Carrier page', a.get('carrier_url')), ('Order page', a.get('order_url')), ('Open in Shop', a.get('shop_url'))] | selectattr(1) | list %}
+              {% for label, url in links %}[{{ label }}]({{ url }}){{ ' · ' if not loop.last }}{% endfor %}
+          - type: conditional
+            conditions:
+              - condition: state
+                entity: text.parcels_slot_8_tracking
+                state_not: unavailable
+            card:
+              type: entities
+              entities:
+                - entity: text.parcels_slot_8_tracking
+                  name: Add tracking number
           - type: markdown
             title: Emails
-            content: >-
+            content: |-
               {% set a = (states.sensor.parcels_slot_8.attributes if states.sensor.parcels_slot_8 else {}) %}
-              {% for e in a.get('emails', []) %}- {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
+              {% for e in a.get('emails', []) %}
+              - {{ (e.date or '')[:10] }} {{ e.subject }}{% if e.note %}: {{ e.note }}{% endif %}
               {% endfor %}

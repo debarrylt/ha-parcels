@@ -278,6 +278,62 @@ ETA, last carrier event, link, Received and Follow up buttons), a detail page pe
 dashboard with the URL `dashboard-parcels` (or edit the navigation paths) and paste it into the raw configuration
 editor.
 
+A parcel without a tracking number also shows its order and Shop links and a box to type the number, in the list and on
+its detail page. Both disappear once it has one. The parts below can be added to a dashboard of your own; repeat them
+per slot (1 to 8).
+
+A parcel, shown only while the slot is filled:
+
+```yaml
+type: markdown
+content: >-
+  {% set a = (states.sensor.parcels_slot_1.attributes if states.sensor.parcels_slot_1 else {}) %}
+  **{{ states('sensor.parcels_slot_1') }}**<br>
+  {{ a.get('status') }} · {{ a.get('eta') or 'no date yet' }}
+  {% if a.get('flagged') %}<br>Follow up: {{ a.get('flag_reason') }}{% endif %}
+  {% if a.get('url') %}<br>[{{ a.get('tracking') or 'Track' }}]({{ a.get('url') }}){% endif %}
+  {% if a.get('needs_tracking') and a.get('shop_url') %}<br>[Open in Shop]({{ a.get('shop_url') }}){% endif %}
+  {% if a.get('needs_tracking') and a.get('order_url') %}<br>[View order]({{ a.get('order_url') }}){% endif %}
+visibility:
+  - condition: state
+    entity: sensor.parcels_slot_1
+    state_not: none
+```
+
+The number box, shown only while the parcel has no number:
+
+```yaml
+type: entities
+entities:
+  - entity: text.parcels_slot_1_tracking
+    name: Add tracking number
+visibility:
+  - condition: state
+    entity: text.parcels_slot_1_tracking
+    state_not: unavailable
+```
+
+A notification when you need to look a number up:
+
+```yaml
+alias: Parcel needs a tracking number
+triggers:
+  - trigger: event
+    event_type: parcels_update
+    event_data:
+      kind: follow_up
+conditions:
+  - condition: template
+    value_template: "{{ (trigger.event.data.flag_reason or '').startswith('No tracking number') }}"
+actions:
+  - action: notify.notify          # your notify service
+    data:
+      title: Parcel without a tracking number
+      message: "{{ trigger.event.data.title }}: look the number up in the shop, then add it."
+      data:
+        url: /dashboard-parcels/parcels          # opened by tapping the notification (iOS; clickAction on Android)
+```
+
 ## Privacy
 
 - Email bodies are processed in memory and not stored. Stored per email: IMAP UID, Message-ID, date, subject (120
